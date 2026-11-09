@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Rúbricas Classroom</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h2 { color: #333; }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin-top: 15px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #1557b0; }
+        .instrucciones {
+            background-color: #e8f0fe;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Generador de Rúbricas para Google Classroom (v1.0-s)</h2>
+    
+    <div class="instrucciones">
+        <strong>Instrucciones:</strong> Pega el código JSON de tus PDA en la caja de texto y haz clic en "Generar y Descargar CSV". Se descargarán 3 archivos (uno por cada grado).
+    </div>
+
+    <textarea id="jsonInput" rows="15" placeholder="Pega tu JSON aquí..."></textarea>
+    <br>
+    <button onclick="generarArchivos()">Generar y Descargar CSV</button>
+
+    <script>
+        function generarArchivos() {
+            const jsonText = document.getElementById('jsonInput').value;
+            let data;
+            
+            try {
+                data = JSON.parse(jsonText);
+            } catch (e) {
+                alert("Error: El formato JSON no es válido. Revisa el texto e intenta de nuevo.");
+                return;
+            }
+
+            const grados = ["1er grado", "2do grado", "3er grado"];
+
+            grados.forEach(grado => {
+                // Agregar BOM para forzar la codificación UTF-8 en Excel y Classroom
+                let csvContent = "\uFEFF"; 
+                
+                // Filas obligatorias de validación v1.0-s
+                csvContent += "Te recomendamos no editar rúbricas en formato de hoja de cálculo\n";
+                csvContent += "v1.0-s\n";
+
+                data.contenidos.forEach(item => {
+                    // Escapar comillas dobles en caso de que el texto las contenga
+                    let titulo = `"${item.contenido.replace(/"/g, '""')}"`;
+                    let pda = item.pda_por_grado[grado][0];
+                    let descPda = `"${pda.replace(/"/g, '""')}"`;
+
+                    // Fila 1: Título y descripción general del criterio
+                    csvContent += `${titulo},${descPda}\n`;
+                    
+                    // Fila 2: En blanco
+                    csvContent += "\n";
+                    
+                    // Fila 3: Puntos (La columna A va vacía, empezamos desde la B)
+                    csvContent += `,"10","7.5","5","2.5"\n`;
+                    
+                    // Fila 4: Niveles
+                    csvContent += `,"Destacado","Satisfactorio","En proceso","Requiere apoyo"\n`;
+                    
+                    // Fila 5: Descripciones progresivas basadas en el PDA
+                    let d1 = `"${('Logra de manera destacada: ' + pda).replace(/"/g, '""')}"`;
+                    let d2 = `"${('Logra satisfactoriamente: ' + pda).replace(/"/g, '""')}"`;
+                    let d3 = `"${('Se encuentra en proceso de lograr: ' + pda).replace(/"/g, '""')}"`;
+                    let d4 = `"${('Requiere apoyo para lograr: ' + pda).replace(/"/g, '""')}"`;
+                    
+                    csvContent += `,${d1},${d2},${d3},${d4}\n`;
+                });
+
+                // Crear el Blob y disparar la descarga
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                
+                // Formatear el nombre del archivo
+                const nombreArchivo = `Rubrica_Tecnologia_${grado.replace(' ', '_')}.csv`;
+                
+                link.setAttribute("href", url);
+                link.setAttribute("download", nombreArchivo);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+    </script>
+
+</body>
+</html>

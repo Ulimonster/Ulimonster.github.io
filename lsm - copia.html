@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traductor Visual LSM</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6', // Azul brillante
+                        secondary: '#1d4ed8', // Azul oscuro
+                        dark: '#0f172a'
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #f8fafc; }
+        
+        /* Estilos específicos para el carrusel */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            aspect-ratio: 4/3;
+            background-color: #e2e8f0;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .carousel-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+            background-color: white;
+            z-index: 0;
+        }
+
+        .carousel-slide.active {
+            opacity: 1;
+            z-index: 10;
+        }
+
+        .carousel-img {
+            max-width: 100%;
+            max-height: 80%;
+            object-fit: contain;
+        }
+
+        .carousel-text {
+            margin-top: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .carousel-subtext {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        /* Barra de progreso */
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background-color: #e2e8f0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            z-index: 20;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #3b82f6;
+            width: 0%;
+            transition: width linear;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-dark text-white shadow-md py-4">
+        <div class="max-w-4xl mx-auto px-4 flex items-center space-x-3">
+            <i class="fa-solid fa-hands text-2xl text-primary"></i>
+            <h1 class="text-2xl font-bold">Traductor Visual LSM</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-4xl mx-auto w-full px-4 py-8 flex flex-col items-center">
+        
+        <!-- Panel de Entrada de Texto -->
+        <div class="w-full bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+            <label for="inputText" class="block text-sm font-semibold text-gray-600 mb-2">
+                Escribe tu texto a traducir:
+            </label>
+            <textarea 
+                id="inputText" 
+                class="w-full h-32 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-0 resize-none text-lg transition-colors"
+                placeholder="Ejemplo: Hola me llamo Ulises..."
+            ></textarea>
+            
+            <div class="flex flex-wrap justify-between items-center mt-4 gap-4">
+                <div class="text-xs text-gray-500 max-w-sm">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    El sistema buscará <code class="bg-gray-100 px-1 rounded">lsmimg/LSM_PALABRA.png</code>. Si no existe, la deletreará.
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button onclick="clearAll()" class="px-5 py-2.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-lg font-medium transition-colors flex items-center shadow-sm">
+                        <i class="fa-solid fa-trash-can mr-2"></i> Borrar Todo
+                    </button>
+                    <button onclick="processTranslation()" id="translateBtn" class="px-6 py-2.5 bg-primary hover:bg-secondary text-white rounded-lg font-semibold transition-colors flex items-center shadow-md">
+                        <i class="fa-solid fa-language mr-2"></i> Traducir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenedor del Carrusel (Oculto inicialmente) -->
+        <div id="carouselWrapper" class="w-full hidden animate-fade-in flex-col items-center">
+            
+            <div class="flex justify-between items-end w-full max-w-[600px] mb-2 px-1">
+                <h3 class="text-lg font-bold text-gray-700">Traducción</h3>
+                <span id="counterDisplay" class="text-sm font-medium text-gray-500 bg-gray-200 px-3 py-1 rounded-full">
+                    0 / 0
+                </span>
+            </div>
+
+            <!-- Carrusel Principal -->
+            <div 
+                class="carousel-container group" 
+                id="mainCarousel"
+                onmouseenter="pauseCarousel()"
+                onmouseleave="resumeCarousel()"
+            >
+                <!-- Mensaje de Carga -->
+                <div id="loadingState" class="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center">
+                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary mb-4"></i>
+                    <p class="text-gray-500 font-medium animate-pulse">Buscando imágenes...</p>
+                </div>
+
+                <!-- Contenedor de Slides -->
+                <div id="slidesContainer" class="w-full h-full relative">
+                    <!-- Las imágenes se inyectan aquí por JS -->
+                </div>
+
+                <!-- Barra de progreso -->
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+
+                <!-- Botones de Control Superpuestos -->
+                <button onclick="prevSlide()" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 focus:outline-none">
+                    <i class="fa-solid fa-chevron-left text-xl"></i>
+                </button>
+                
+                <button onclick="nextSlide()" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 focus:outline-none">
+                    <i class="fa-solid fa-chevron-right text-xl"></i>
+                </button>
+
+                <!-- Indicador de Pausa -->
+                <div id="pauseIndicator" class="absolute top-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-bold opacity-0 transition-opacity z-20 backdrop-blur-sm flex items-center">
+                    <i class="fa-solid fa-pause mr-1"></i> Pausado
+                </div>
+            </div>
+
+            <!-- Controles Adicionales -->
+            <div class="flex justify-center mt-6 space-x-4">
+                <button id="playPauseBtn" onclick="togglePlayPause()" class="w-14 h-14 bg-gray-800 hover:bg-gray-900 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105">
+                    <i class="fa-solid fa-pause text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Línea de texto renderizado -->
+            <div id="wordTimeline" class="w-full max-w-[600px] mt-6 flex flex-wrap gap-2 justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // CONFIGURACIÓN
+        const IMG_FOLDER = 'lsmimg/';
+        const IMG_PREFIX = 'LSM_';
+        const IMG_EXT = '.png'; // Cambia esto si tus imágenes son .jpg
+        const SLIDE_DURATION = 2500; // 2.5 segundos
+
+        // ESTADO DE LA APP
+        let translationQueue = [];
+        let currentSlideIndex = 0;
+        let isPlaying = false;
+        let isHoverPaused = false;
+        let carouselInterval = null;
+        let progressInterval = null;
+        let startTime = 0;
+        let timeRemaining = SLIDE_DURATION;
+
+        // Limpieza de texto (quitar acentos y puntuación)
+        function cleanText(text) {
+            return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quitar acentos
+                       .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()¿?¡!]/g,"") // Quitar puntuación
+                       .toUpperCase(); // Estandarizar a mayúsculas
+        }
+
+        // Verifica asíncronamente si una imagen existe
+        function imageExists(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = url;
+            });
+        }
+
+        // LÓGICA PRINCIPAL DE TRADUCCIÓN
+        async function processTranslation() {
+            const rawText = document.getElementById('inputText').value.trim();
+            if (!rawText) return;
+
+            // Preparar UI
+            document.getElementById('carouselWrapper').classList.remove('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+            stopCarousel();
+            
+            translationQueue = []; // Reset queue
+            const words = cleanText(rawText).split(/\s+/).filter(w => w.length > 0);
+
+            // Procesar cada palabra
+            for (const word of words) {
+                // 1. Intentar cargar la palabra completa
+                const wordImgUrl = `${IMG_FOLDER}${IMG_PREFIX}${word}${IMG_EXT}`;
+                const wordExists = await imageExists(wordImgUrl);
+
+                if (wordExists) {
+                    // Si existe, agregar a la cola como palabra entera
+                    translationQueue.push({
+                        text: word,
+                        type: 'palabra',
+                        url: wordImgUrl
+                    });
+                } else {
+                    // 2. Si no existe, deletrear letra por letra
+                    for (const letter of word) {
+                        // Evitar espacios o caracteres raros
+                        if(letter.trim() === '') continue;
+                        
+                        const letterImgUrl = `${IMG_FOLDER}${IMG_PREFIX}${letter}${IMG_EXT}`;
+                        // Nota: Asumimos que las letras siempre existen. Si no, podrías poner una imagen fallback.
+                        translationQueue.push({
+                            text: letter,
+                            type: 'deletreo',
+                            wordRef: word, // Para saber a qué palabra pertenece
+                            url: letterImgUrl
+                        });
+                    }
+                }
+            }
+
+            // Finalizar carga e iniciar
+            document.getElementById('loadingState').classList.add('hidden');
+            
+            if (translationQueue.length > 0) {
+                buildCarousel();
+                currentSlideIndex = 0;
+                renderTimeline();
+                updateSlideView();
+                playCarousel();
+            } else {
+                alert("No se detectó texto válido.");
+                document.getElementById('carouselWrapper').classList.add('hidden');
+            }
+        }
+
+        // CONSTRUIR EL DOM DEL CARRUSEL
+        function buildCarousel() {
+            const container = document.getElementById('slidesContainer');
+            container.innerHTML = ''; // Limpiar
+
+            translationQueue.forEach((item, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'carousel-slide';
+                slide.id = `slide-${index}`;
+                
+                // Texto a mostrar
+                const subtext = item.type === 'deletreo' ? `Deletreando: ${item.wordRef}` : 'Palabra Completa';
+
+                slide.innerHTML = `
+                    <img src="${item.url}" alt="${item.text}" class="carousel-img" onerror="this.src='https://placehold.co/400x300/e2e8f0/64748b?text=Falta+Imagen\\n${item.text}'">
+                    <div class="carousel-text mt-4">${item.text}</div>
+                    <div class="carousel-subtext">${subtext}</div>
+                `;
+                
+                container.appendChild(slide);
+            });
+        }
+
+        // RENDERIZAR LA LÍNEA DE TIEMPO (Píldoras de palabras)
+        function renderTimeline() {
+            const timeline = document.getElementById('wordTimeline');
+            timeline.innerHTML = '';
+            
+            translationQueue.forEach((item, index) => {
+                const badge = document.createElement('div');
+                badge.className = 'px-3 py-1 rounded text-sm font-bold cursor-pointer transition-colors';
+                badge.id = `badge-${index}`;
+                
+                if (item.type === 'deletreo') {
+                    badge.innerHTML = `<span class="text-gray-400 text-xs mr-1 font-normal">letra</span>${item.text}`;
+                } else {
+                    badge.innerText = item.text;
+                }
+                
+                badge.onclick = () => jumpToSlide(index);
+                timeline.appendChild(badge);
+            });
+        }
+
+        // ACTUALIZAR LA VISTA AL CAMBIAR DE SLIDE
+        function updateSlideView() {
+            if (translationQueue.length === 0) return;
+
+            // Actualizar contador
+            document.getElementById('counterDisplay').innerText = `${currentSlideIndex + 1} / ${translationQueue.length}`;
+
+            // Actualizar Slides
+            document.querySelectorAll('.carousel-slide').forEach((slide, idx) => {
+                if (idx === currentSlideIndex) {
+                    slide.classList.add('active');
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+
+            // Actualizar Timeline
+            document.querySelectorAll('[id^="badge-"]').forEach((badge, idx) => {
+                if (idx === currentSlideIndex) {
+                    badge.classList.add('bg-primary', 'text-white', 'scale-110', 'shadow-md');
+                    badge.classList.remove('bg-gray-100', 'text-gray-600');
+                } else {
+                    badge.classList.remove('bg-primary', 'text-white', 'scale-110', 'shadow-md');
+                    badge.classList.add('bg-gray-100', 'text-gray-600');
+                }
+            });
+
+            // Resetear barra de progreso visual
+            resetProgressBar();
+        }
+
+        // CONTROLADORES DE TIEMPO
+        function playCarousel() {
+            if (translationQueue.length <= 1) return;
+            isPlaying = true;
+            updatePlayPauseBtn();
+            startTimer(timeRemaining);
+        }
+
+        function stopCarousel() {
+            isPlaying = false;
+            updatePlayPauseBtn();
+            clearTimers();
+        }
+
+        function startTimer(duration) {
+            clearTimers();
+            if(!isPlaying || isHoverPaused) return;
+
+            startTime = Date.now();
+            
+            // Animación CSS de la barra
+            const bar = document.getElementById('progressBar');
+            bar.style.transition = `width ${duration}ms linear`;
+            // Pequeño timeout para asegurar que el navegador registre el cambio de transición
+            setTimeout(() => {
+                bar.style.width = '100%';
+            }, 50);
+
+            // Temporizador lógico para cambiar de slide
+            carouselInterval = setTimeout(() => {
+                nextSlide();
+            }, duration);
+        }
+
+        function clearTimers() {
+            clearTimeout(carouselInterval);
+            const bar = document.getElementById('progressBar');
+            bar.style.transition = 'none';
+        }
+
+        function resetProgressBar() {
+            const bar = document.getElementById('progressBar');
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+            timeRemaining = SLIDE_DURATION; // resetear tiempo
+            
+            if (isPlaying && !isHoverPaused) {
+                startTimer(SLIDE_DURATION);
+            }
+        }
+
+        // EVENTOS HOVER (Pausar)
+        function pauseCarousel() {
+            if (!isPlaying) return;
+            isHoverPaused = true;
+            document.getElementById('pauseIndicator').style.opacity = '1';
+            
+            // Calcular cuánto tiempo quedó
+            const elapsed = Date.now() - startTime;
+            timeRemaining = Math.max(0, timeRemaining - elapsed);
+            clearTimers();
+            
+            // Congelar barra de progreso visual
+            const bar = document.getElementById('progressBar');
+            bar.style.transition = 'none';
+            bar.style.width = `${((SLIDE_DURATION - timeRemaining) / SLIDE_DURATION) * 100}%`;
+        }
+
+        function resumeCarousel() {
+            if (!isPlaying) return;
+            isHoverPaused = false;
+            document.getElementById('pauseIndicator').style.opacity = '0';
+            
+            // Reanudar con el tiempo restante
+            startTimer(timeRemaining);
+        }
+
+        // NAVEGACIÓN MANUAL
+        function nextSlide() {
+            currentSlideIndex = (currentSlideIndex + 1) % translationQueue.length;
+            updateSlideView();
+        }
+
+        function prevSlide() {
+            currentSlideIndex = (currentSlideIndex - 1 + translationQueue.length) % translationQueue.length;
+            updateSlideView();
+        }
+
+        function jumpToSlide(index) {
+            currentSlideIndex = index;
+            updateSlideView();
+        }
+
+        // BOTON PLAY/PAUSE GLOBAL
+        function togglePlayPause() {
+            if (isPlaying) {
+                stopCarousel();
+                timeRemaining = SLIDE_DURATION; // Reiniciar tiempo si se pausa manualmente
+            } else {
+                playCarousel();
+            }
+        }
+
+        function updatePlayPauseBtn() {
+            const btn = document.getElementById('playPauseBtn');
+            if (isPlaying) {
+                btn.innerHTML = '<i class="fa-solid fa-pause text-xl"></i>';
+                btn.classList.replace('bg-primary', 'bg-gray-800');
+                btn.classList.replace('hover:bg-blue-600', 'hover:bg-gray-900');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-play text-xl ml-1"></i>'; // ml-1 para centrar el icono de play
+                btn.classList.replace('bg-gray-800', 'bg-primary');
+                btn.classList.replace('hover:bg-gray-900', 'hover:bg-blue-600');
+            }
+        }
+
+        // LIMPIAR TODO
+        function clearAll() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('carouselWrapper').classList.add('hidden');
+            stopCarousel();
+            translationQueue = [];
+            currentSlideIndex = 0;
+        }
+
+        // Atajo de teclado (Enter para traducir)
+        document.getElementById('inputText').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                processTranslation();
+            }
+        });
+    </script>
+</body>
+</html>

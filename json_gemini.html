@@ -1,0 +1,775 @@
+
+<!DOCTYPE html>
+<html lang="es-MX">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Prompt NEM - Fase 6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        
+        body {  
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #0d9488;
+            border-radius: 10px;
+        }
+
+        .section-card {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            transition: all 150ms ease;
+        }
+
+        .section-card:hover {
+            box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .label-title {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .textarea-full {
+            width: 100%;
+            padding: 1rem;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            min-height: 100px;
+            resize: vertical;
+            transition: all 150ms ease;
+        }
+
+        .textarea-full:focus {
+            box-shadow: 0 0 0 2px #14b8a6;
+            background-color: white;
+        }
+
+        .input-full {
+            width: 100%;
+            padding: 1rem;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 150ms ease;
+        }
+
+        .input-full:focus {
+            box-shadow: 0 0 0 2px #14b8a6;
+            background-color: white;
+        }
+
+        .tag-label {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            background-color: #f1f5f9;
+            border-radius: 0.75rem;
+            border: 1px solid #f0f4f8;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .tag-label:hover {
+            background-color: #f0fdfa;
+            border-color: #99f6e4;
+        }
+
+        .tag-label input {
+            margin-right: 0.75rem;
+            width: 1rem;
+            height: 1rem;
+            accent-color: #0f766e;
+        }
+
+        .ods-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .sticky-panel {
+            position: sticky;
+            top: 1.5rem;
+            height: calc(100vh - 3rem);
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-10">
+
+    <div class="max-w-7xl mx-auto">
+        <header
+            class="mb-10 border-b border-slate-200 pb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Generador de Prompts <span
+                        class="text-teal-600">NEM Fase 6</span></h1>
+                <p class="text-slate-500 mt-1 font-medium text-lg">Codiseño, Metodologías y Evaluación Formativa.</p>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+                <div
+                    class="px-4 py-2 bg-slate-100 rounded-full text-[11px] text-slate-500 font-bold uppercase tracking-tighter border border-slate-200">
+                    Versión 1.8 | por Ulises Gabriel Loeza López
+                </div>
+                <a href="https://gemini.google.com/" target="_blank" class="flex items-center gap-2 text-xs font-bold text-teal-700 hover:text-teal-900 transition-colors">
+                    Abrir Gemini <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                </a>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+
+            <!-- CONFIGURACIÓN (IZQUIERDA) -->
+            <div class="lg:col-span-7">
+
+                <!-- SECCIÓN 1: CONTEXTO -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span
+                            class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">01</span>
+                        <h2 class="font-bold text-slate-800 text-lg">Contexto Curricular y ODS</h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <!-- Campo Formativo -->
+                        <div>
+                            <label class="label-title font-bold">Campo Formativo</label>
+                            <select id="campo-select"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm">
+                                <option value="">Selecciona Campo...</option>
+                                <option value="Lenguajes">Lenguajes</option>
+                                <option value="Saberes y Pensamiento Científico">Saberes y Pensamiento Científico
+                                </option>
+                                <option value="Ética, Naturaleza y Sociedades">Ética, Naturaleza y Sociedades</option>
+                                <option value="De lo Humano y lo Comunitario">De lo Humano y lo Comunitario</option>
+                            </select>
+                        </div>
+                        <!-- Disciplina -->
+                        <div>
+                            <label class="label-title font-bold">Disciplina</label>
+                            <select id="disciplina-select"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm" disabled>
+                                <option value="">Selecciona disciplina</option>
+                            </select>
+                        </div>
+
+                        <!--  Finalidades  -->
+                        <div>
+                            <select id="finalidades-select"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm" disabled hidden>
+                            </select>
+                        </div>
+
+                        <!--  Especificidades  -->
+                        <div>
+                            <select id="especificidades-select"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm" disabled hidden>
+                            </select>
+                        </div>
+
+                        <!--  Grado  -->
+                        <div>
+                            <label class="label-title font-bold">Grado</label>
+                            <select id="grado-select"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm">
+                                <option value="">Selecciona Grado...</option>
+                                <option value="Primer Grado">Primer Grado</option>
+                                <option value="Segundo Grado">Segundo Grado</option>
+                                <option value="Tercer Grado">Tercer Grado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!--  Ejes Articuladores  -->
+                    <div>
+                        <label class="label-title font-bold">Ejes Articuladores (Selección Múltiple)</label>
+                        <div
+                            class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-96 overflow-y-auto custom-scrollbar">
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check" 
+                                    value="Inclusión"> Inclusión</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check"
+                                    value="Pensamiento Crítico"> Pensamiento Crítico</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check"
+                                    value="Interculturalidad Crítica"> Interculturalidad Crítica</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check"
+                                    value="Igualdad de Género"> Igualdad de Género</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check" 
+                                    value="Vida Saludable"> Vida Saludable</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check"
+                                    value="Apropiación de las culturas a través de la lectura y la escritura"> Apropiación de las culturas a través de la lectura y la escritura</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox" class="eje-check"
+                                    value="Artes y Experiencias Estéticas"> Artes y Experiencias Estéticas</label>
+                        </div>
+                    </div>
+
+                    <!--  Contenidos, PDA y codiseño -->
+                    <div class="space-y-8 mb-8">
+                        <div class="w-full">
+                            <label class="label-title font-bold">Contenido del Programa Sintético</label>
+                            <textarea id="contenido-input" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Define el contenido del programa sintético..."></textarea>
+                        </div>
+                        <div class="w-full">
+                            <label class="label-title font-bold">PDA (Procesos de Desarrollo de Aprendizaje)</label>
+                            <textarea id="pda-input" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Describe los PDA correspondientes a la Fase 6..."></textarea>
+                        </div>
+                        <div class="w-full">
+                            <label class="label-title font-bold">Codiseño</label>
+                            <textarea id="codiseno-input" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Ingrese los temas de codiseño que considere pertinentes..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- ODS -->
+                    <div>
+                        <label class="label-title font-bold">Vinculación con ODS (Selección Múltiple)</label>
+                        <div
+                            class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-96 overflow-y-auto custom-scrollbar">
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 1 Fin de la pobreza"> 1. Fin de la Pobreza</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 2: Hambre cero"> 2. Hambre Cero</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 3: Salud y bienestar"> 3. Salud y bienestar</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 4: Educación de calidad"> 4. Educación de calidad</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 5: Igualdad de género"> 5. Igualdad de género</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 6: Agua limpia y saneamiento"> 6. Agua limpia y saneamiento</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 7: Energía asequible y no contaminante"> 7. Energía asequible y no contaminante</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 8: Trabajo decente y crecimiento económico"> 8. Trabajo decente y crecimiento económico</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 9: Industria, innovación e infraestructuras"> 9. Industria, innovación e infraestructuras</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 10: Reducción de las desigualdades"> 10. Reducción de las desigualdades</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 11: Ciudades y comunidades sostenibles"> 11. Ciudades y comunidades sostenibles</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 12: Producción y consumo responsables"> 12.Producción y consumo responsables</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 13: Acción por el clima"> 13. Acción por el clima</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 14: Vida submarina"> 14. Vida submarina</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 15: Vida de ecosistemas terrestres"> 15. Vida de ecosistemas terrestres</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 16: Paz, justicia e instituciones sólidas"> 16. Paz, justicia e instituciones sólidas</label>
+                            <label class="flex items-center text-[16px] p-1"><input type="checkbox"
+                                    class="ods-check mr-2" value="ODS 17: Alianzas para lograr los objetivos"> 17. Alianzas para lograr los objetivos</label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 2: METODOLOGÍA -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span
+                            class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">02</span>
+                        <h2 class="font-bold text-slate-800 text-lg uppercase">Metodología Sociocrítica</h2>
+                    </div>
+
+                    <!--  Metodología sociocrítica  -->
+                    <div
+                        class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-52 overflow-y-auto custom-scrollbar">
+                        <label class="flex items-center text-[16px] p-1"><input type="radio" name="metodologia"
+                                value="Proyectos comunitarios"> Proyectos Comunitarios</label>
+                        <label class="flex items-center text-[16px] p-1"><input type="radio" name="metodologia"
+                                value="Indagación (STEAM como enfoque)"> Indagación (STEAM)</label>
+                        <label class="flex items-center text-[16px] p-1"><input type="radio" name="metodologia"
+                                value="Aprendizaje Basado en Problemas (ABP)"> Basado en Problemas (ABP)</label>
+                        <label class="flex items-center text-[16px] p-1"><input type="radio" name="metodologia"
+                                value="Aprendizaje Servicio (AS)"> Aprendizaje Servicio (AS)</label>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 3: ROL Y TAREA -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span
+                            class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">03</span>
+                        <h2 class="font-bold text-slate-800 text-lg uppercase">Definición de Rol y Tarea</h2>
+                    </div>
+
+                    <!--  Rol, Tarea principal y actividades del alumno  -->
+                    <div class="space-y-8">
+                        <div class="w-full">
+                            <label class="label-title font-bold">Rol Maestro/Especialista (IA)</label>
+                            <input type="text" id="rol-input"
+                                placeholder="Ej: Especialista en Educación Secundaria y Evaluación Formativa..."
+                                class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-500">
+                        </div>
+                        <div class="w-full">
+                            <label class="label-title font-bold">Tarea Principal</label>
+                            <textarea id="tarea-input" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Ej: Diseña una secuencia de 5 sesiones con enfoque inclusivo..."></textarea>
+                        </div>
+                        <div class="w-full">
+                            <label class="label-title font-bold">Actividades del alumno a desarrollar</label>
+                            <textarea id="homework-input" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Ej: Diseña una actividad de 15 ejercicios de..."></textarea>
+                        </div>                        
+                    </div>
+                </section>
+                <!-- SECCIÓN 4: GEOLOCALIZACIÓN -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">04</span>
+                        <h2 class="font-bold text-slate-800 text-lg">Ubicación y Entorno</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <p class="text-xs text-slate-500 mb-4">Proporciona el Plus Code o el enlace de Google Maps de la escuela para un análisis contextual preciso por parte de la IA.</p>
+                        <div class="w-full">
+                            <label class="label-title">Plus Code o URL de Google Maps</label>
+                            <input type="text" id="ubicacion-input" placeholder="Ej: 8FVC9G8F+6X o https://maps.app.goo.gl/..." class="input-full">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 5: REFINAMIENTO -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span
+                            class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">05</span>
+                        <h2 class="font-bold text-slate-800 text-lg uppercase text-sm">Refinamiento y Situación</h2>
+                    </div>
+
+                    <!--  Contexto escolar, Actividades lúdicas o gamificadas, BAP  -->
+                    <div class="space-y-8">
+                        <div class="w-full">
+                            <label class="label-title font-bold">Paso 1: Contexto Escolar / Socioeducativo
+                                (Realidad)</label>
+                            <textarea id="cot-1" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Describe la infraestructura, comunidad y clima escolar..."></textarea>
+                        </div>
+                        <div class="w-full">
+                            <label class="label-title font-bold">Paso 2: ¿Incluir Actividades Lúdicas o
+                                Gamificación?</label>
+                            <textarea id="cot-2" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Describe el tipo de dinámicas o juegos que te gustaría integrar..."></textarea>
+                        </div>
+                        <div class="w-full">
+                            <label class="label-title font-bold">Paso 3: Selección de BAP (Barreras para el Aprendizaje)</label>
+                            <div
+                                class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-52 overflow-y-auto custom-scrollbar">
+                                <label class="tag-label"><input type="checkbox" class="bap-check"
+                                        value="Actitudinales (Prejuicios, exclusión)"> Actitudinales</label>
+                                <label class="tag-label"><input type="checkbox" class="bap-check"
+                                        value="Pedagógicas (Metodologías rígidas)"> Pedagógicas</label>
+                                <label class="tag-label"><input type="checkbox" class="bap-check"
+                                        value="De Organización (Infraestructura, tiempos)"> Organizativas</label>
+                            </div>
+                            <textarea id="cot-3" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Detalles adicionales sobre las BAP identificadas..."></textarea>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="label-title font-bold">Paso 4: Propuesta Pedagógica de Mejora (Ajustes
+                                razonables)</label>
+                            <textarea id="cot-4" rows="4"
+                                class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                                placeholder="Explica qué ajustes esperas que la IA proponga..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 6: EVALUACIÓN -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span
+                            class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">06</span>
+                        <h2 class="font-bold text-slate-800 text-lg uppercase">Evaluación Formativa</h2>
+                    </div>
+
+                    <!--  Instrumentos  -->
+                    <div class="mb-8">
+                        <label class="label-title font-bold">Instrumentos de Evaluación (Técnicas)</label>
+                        <div
+                            class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-52 overflow-y-auto custom-scrollbar">
+                            <label class="tag-label"><input type="checkbox" class="eval-check"
+                                    value="Rúbrica analítica"> Rúbrica</label>
+                            <label class="tag-label"><input type="checkbox" class="eval-check" 
+                                value="Lista de cotejo"> Lista de Cotejo</label>
+                            <label class="tag-label"><input type="checkbox" class="eval-check"
+                                    value="Portafolio de evidencias"> Portafolio de evidencias</label>
+                            <label class="tag-label"><input type="checkbox" class="eval-check"
+                                    value="Guía de observación"> Guía de observación</label>
+                            <label class="tag-label"><input type="checkbox" class="eval-check"
+                                    value="Cuaderno de clase"> Cuaderno de clase</label>
+                            <label class="tag-label"><input type="checkbox" class="eval-check"
+                                    value="Exámenes / Pruebas situadas"> Exámenes</label>
+                            <label class="tag-label"><input type="checkbox" class="eval-check" 
+                                value="Diario de clase"> Diario de clase</label>
+                        </div>
+                    </div>
+
+                    <!--  Modalidades de Evaluación  -->
+                    <div class="mb-8">
+                        <label class="label-title font-bold">Modalidades de Evaluación</label>
+                        <div
+                            class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-52 overflow-y-auto custom-scrollbar">
+                            <label class="tag-label"><input type="checkbox" class="modal-check"
+                                    value="Autoevaluación (Reflexión del alumno)"> Autoevaluación</label>
+                            <label class="tag-label"><input type="checkbox" class="modal-check"
+                                    value="Coevaluación (Entre pares)"> Coevaluación</label>
+                            <label class="tag-label"><input type="checkbox" class="modal-check"
+                                    value="Heteroevaluación (Docente-Alumno)"> Heteroevaluación</label>
+                        </div>
+                    </div>
+
+                    <!--  Retroalimentación y Reflexión -->
+                    <div class="w-full">
+                        <label class="label-title font-bold">Foco de la Retroalimentación y Reflexión</label>
+                        <textarea id="eval-feedback" rows="4"
+                            class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm"
+                            placeholder="Instruye cómo debe ser la retroalimentación para guiar el ajuste pedagógico..."></textarea>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 7: EVALUACIÓN -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span
+                            class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">07</span>
+                        <h2 class="font-bold text-slate-800 text-lg uppercase">Restricciones</h2>
+                    </div>
+                    <div>
+                        <label class="label-title font-bold">Incluir</label>
+                        <div
+                            class="ods-grid bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-52 overflow-y-auto custom-scrollbar">
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Formato de tabla Markdown"> Tabla Markdown</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Lenguaje accesible y evitar tecnicismos innecesarios"> Lenguaje accesible</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Bibliografía oficial de la NEM"> Bibliografía NEM</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Enfoque de inclusión y diversidad"> Enfoque Inclusivo</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Fórmulas tipo LaTex"> Fórmulas tipo LaTex</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Bibliografía externa complementaria"> Bibliografía Externa</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Apegado a los Libros de Texto Gratuito (LTG)"> Apegado a LTG</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Videos de Youtube pertinentes"> Videos en Youtube</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Podcast en Spotify pertinentes"> Podcast en Spotify</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Charlas TED pertinentes"> TedTalks</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Películas pertinentes"> Películas</label>
+                            <label class="tag-label"><input type="checkbox" class="restric-check mr-2"
+                                    value="Canciones pertinentes"> Canciones</label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCIÓN 8: DIAGRAMAS MERMAID -->
+                <section class="section-card">
+                    <div class="flex items-center space-x-3 mb-8">
+                        <span class="bg-teal-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black">08</span>
+                        <h2 class="font-bold text-slate-800 text-lg uppercase">Apoyo Visual (Mermaid.js)</h2>
+                    </div>
+                    <div class="mb-6">
+                        <label class="label-title">Solicitar Diagramas Específicos</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <label class="tag-label"><input type="checkbox" class="mermaid-check" value="Mapa Mental (Mindmap)"> Mapa Mental</label>
+                            <label class="tag-label"><input type="checkbox" class="mermaid-check" value="Diagrama de Flujo (Flowchart)"> Diagrama Flujo</label>
+                            <label class="tag-label"><input type="checkbox" class="mermaid-check" value="Línea del Tiempo (Timeline)"> Línea Tiempo</label>
+                            <label class="tag-label"><input type="checkbox" class="mermaid-check" value="Diagrama de Gantt (Planeación)"> Diag. Gantt</label>
+                            <label class="tag-label"><input type="checkbox" class="mermaid-check" value="Gráfico de Pastel (Pie Chart)"> Gráfico Pastel</label>
+                            <label class="tag-label"><input type="checkbox" class="mermaid-check" value="Diagrama de Secuencia"> Secuencia</label>
+                        </div>
+                    </div>
+                    <div class="w-full">
+                        <label class="label-title">Instrucciones Adicionales para Diagramas</label>
+                        <textarea id="mermaid-instr" class="textarea-full" placeholder="Ej: Representar el ciclo del agua o los pasos de la metodología elegida..."></textarea>
+                    </div>
+                </section>
+
+                <button id="btn-generate"
+                    class="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] mb-12 uppercase tracking-[0.2em] text-sm">
+                    Construir Prompt
+                </button>
+            </div>
+
+            <!-- SALIDA (DERECHA) -->
+            <div class="lg:col-span-5">
+                <div class="sticky-panel">
+                    <div
+                        class="bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full border border-slate-800">
+                        <div class="bg-slate-800 px-6 py-4 flex justify-between items-center border-b border-slate-700">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                <span
+                                    class="ml-4 text-slate-400 font-mono text-[10px] uppercase font-bold tracking-widest">Prompt_NEM_AAAA_MM_DD.json</span>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button id="btn-copy"
+                                    class="text-[10px] bg-teal-600 text-white px-4 py-2 rounded-lg font-black hover:bg-teal-500 uppercase transition-all">Copiar</button>
+                                <button id="btn-download"
+                                    class="text-[10px] bg-slate-700 text-white px-4 py-2 rounded-lg font-black hover:bg-slate-600 uppercase transition-all">Descargar JSON</button>
+                            </div>
+                        </div>
+                        <div id="output-view"
+                            class="p-8 text-slate-300 font-mono text-[11px] leading-relaxed overflow-y-auto custom-scrollbar flex-grow bg-slate-950">
+                            <div
+                                class="flex flex-col items-center justify-center h-full text-slate-600 opacity-50 space-y-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                                <p class="italic">Esperando configuración de parámetros...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Recolectar datos del formulario
+        function getFormData() {
+            return {
+                rol_sistema: document.getElementById('rol-input').value || "Especialista en Educación Secundaria con enfásis en " + campoSelect.value + " " + disciplinaSelect.value + " de la Fase 6, con experiencia en evaluación formativa y ajustes pedagógicos razonables.",
+                tipo_salida:{
+                    Estilo: "Profesional, empático y situado.",
+                    Formato: "APA 7.",
+                    Enfoque: "Humanista, crítico y comunitario."
+                },
+                contexto_curricular: {
+                    campo_formativo: campoSelect.value,
+                    finalidades: finalidadesSelect.value,
+                    especificidades: especificidadesSelect.value,
+                    disciplina: disciplinaSelect.value,
+                    grado: document.getElementById('grado-select').value
+                },
+                planeacion: {
+                    metodologia: document.querySelector('input[name="metodologia"]:checked')?.value || "No especificada",
+                    contenido: document.getElementById('contenido-input').value || "No especificado",
+                    pda: document.getElementById('pda-input').value || "No especificado",
+                    codiseño: document.getElementById('codiseno-input').value || "No especificado",
+                    ejes_articuladores: Array.from(document.querySelectorAll('.eje-check:checked')).map(a => a.value) || "No especificado",
+                    ods: Array.from(document.querySelectorAll('.ods-check:checked')).map(b => b.value) || "No especificado"
+                },
+                tareas: {
+                    instruccion_principal: document.getElementById('tarea-input').value || "No especificada",
+                    actividades_alumno: document.getElementById('homework-input').value || "No especificada",
+                    actividad_ludicas: document.getElementById('cot-2').value || 'No incluir'
+                },
+                refinamiento: {
+                    contexto_escolar: document.getElementById('cot-1').value || "No especificado",
+                    ubicacion: document.getElementById('ubicacion-input').value || "No especificada",
+                    bap: Array.from(document.querySelectorAll('.bap-check:checked')).map(c => c.value) || "No especificada",
+                    detalle_bap: document.getElementById('cot-3').value || 'Sin detalles',
+                    ajustes_razonables: document.getElementById('cot-4').value || 'Sin ajustes'
+                },
+                evualuacion: {
+                    modalidad: Array.from(document.querySelectorAll('.modal-check:checked')).map(d => d.value) || "Heteroevaluación",
+                    instrumentos: Array.from(document.querySelectorAll('.eval-check:checked')).map(e => e.value) || "No especificado",
+                    retroalimentación: document.getElementById('eval-feedback').value || 'Fomentar la reflexión y el ajuste pedagógico continuo',
+                },
+                recursos:{
+                    incluir: Array.from(document.querySelectorAll('.restric-check:checked')).map(f => f.value) || 'No seleccionados'
+                },
+                fuentes_de_informacion: {
+                    permitidas: ["SEP", "ONU", "UNESCO", "Redalyc", "SciELO", "INEGI","Google Scholar","Scopus","Dialnet","Microsoft Academic Research","Elejandria", "Biblioteca Virtual de Yucatán", "CONALITEG Digital", "Biblioteca Digital UNAM","Proyecto Gutenberg","Biblioteca Virtual Miguel de Cervantes","Open Library","Google Libros","RAE","National Geographic","Nature"],
+                    prohibidas: ["Wikipedia", "Scribd", "Rincón del vago", "Facebook", "X/Twitter", "TikTok", "BuenasTareas", "Slideshare"]
+                },
+                apoyo_visual: {
+                    tecnologia: "Mermaid.js",
+                    diagramas_solicitados: Array.from(document.querySelectorAll('.mermaid-check:checked')).map(c => c.value),
+                    instrucciones: document.getElementById('mermaid-instr').value
+                },
+                metadata: {
+                    autor: "Ulises Gabriel Loeza López",
+                    version: "1.8",
+                    fecha: new Date().toLocaleDateString()
+                }
+            };
+        }
+
+        // Generar Visualización JSON
+        document.getElementById('btn-generate').addEventListener('click', () => {
+            const data = getFormData();
+            if (!data.contexto_curricular.campo_formativo) {
+                alert("Por favor, selecciona al menos el Campo Formativo.");
+                return;
+            }
+            outputView.innerHTML = `<code class="whitespace-pre-wrap">${JSON.stringify(data, null, 4)}</code>`;
+        });
+
+        const dataNEM = {
+            "Lenguajes": {
+                disciplinas: ["Español", "Inglés", "Artes", "Lengua Indígena"],
+                finalidades: ["Uso de lenguajes para la comunicación asertiva, expresión estética y cultural."],
+                especificidades: ["Interpretación crítica y producción de diversos tipos de textos."]
+            },
+            "Saberes y Pensamiento Científico": {
+                disciplinas: ["Matemáticas", "Biología", "Física", "Química"],
+                finalidades: ["Desarrollo del pensamiento científico y resolución de problemas matemáticos."],
+                especificidades: ["Modelación de fenómenos y comprensión de sistemas técnicos y biológicos."]
+            },
+            "Ética, Naturaleza y Sociedades": {
+                disciplinas: ["Geografía", "Historia", "Formación Cívica y Ética"],
+                finalidades: ["Conciencia ética, derechos humanos y responsabilidad ambiental."],
+                especificidades: ["Análisis histórico, geográfico y formación de ciudadanía activa."]
+            },
+            "De lo Humano y lo Comunitario": {
+                disciplinas: ["Tecnología", "Educación Física", "Socioemocional / Tutoría"],
+                finalidades: ["Identidad personal, cuidado del cuerpo y vida en comunidad."],
+                especificidades: ["Gestión de emociones, proyectos de vida y bienestar colectivo."]
+            }
+        };
+
+        // Elementos del DOM
+        const gradoSelect = document.getElementById('grado-select');
+        const campoSelect = document.getElementById('campo-select');
+        const disciplinaSelect = document.getElementById('disciplina-select');
+        const finalidadesSelect = document.getElementById('finalidades-select');
+        const especificidadesSelect = document.getElementById('especificidades-select');
+        const outputView = document.getElementById('output-view');
+        const generateBtn = document.getElementById('btn-generate');
+        const copyBtn = document.getElementById('btn-copy');
+        const downloadBtn = document.getElementById('btn-download');
+
+        //Disciplinas
+        campoSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            disciplinaSelect.innerHTML = '<option value="">Selecciona disciplina</option>';
+            if (val && dataNEM[val]) {
+                disciplinaSelect.disabled = false;
+                dataNEM[val].disciplinas.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.textContent = d;
+                    disciplinaSelect.appendChild(opt);
+                });
+            } else { disciplinaSelect.disabled = true; }
+        });
+
+        //Finalidades
+        campoSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            finalidadesSelect.innerHTML = '';
+            if (val && dataNEM[val]) {
+                finalidadesSelect.disabled = false;
+                dataNEM[val].finalidades.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.textContent = d;
+                    finalidadesSelect.appendChild(opt);
+                });
+            } else { finalidadesSelect.disabled = true; }
+        });
+
+        //Especifidades
+        campoSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            especificidadesSelect.innerHTML = '';
+            if (val && dataNEM[val]) {
+                especificidadesSelect.disabled = false;
+                dataNEM[val].especificidades.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.textContent = d;
+                    especificidadesSelect.appendChild(opt);
+                });
+            } else { especificidadesSelect.disabled = true; }
+        });
+
+        // Generar JSON
+        generateBtn.addEventListener('click', () => {
+            const campo = campoSelect.value;
+            if (!campo) return alert("Selecciona al menos el Campo Formativo.");
+            const grado = gradoSelect.value;
+            const ejes = Array.from(document.querySelectorAll('.eje-check:checked')).map(c => c.value);
+            const ods = Array.from(document.querySelectorAll('.ods-check:checked')).map(c => c.value);
+            const bap = Array.from(document.querySelectorAll('.bap-check:checked')).map(c => c.value);
+            const inst = Array.from(document.querySelectorAll('.eval-check:checked')).map(c => c.value);
+            const mod = Array.from(document.querySelectorAll('.modal-check:checked')).map(c => c.value);
+            const metodo = document.querySelector('input[name="metodologia"]:checked')?.value || "A definir";
+            const restric = Array.from(document.querySelectorAll('.restric-check:checked')).map(c => c.value);
+            campo
+        });
+
+        // Copiar 
+        copyBtn.addEventListener('click', () => {
+            const text = outputView.innerText;
+            if (text.includes('Esperando')) return;
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed"; textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            copyBtn.innerText = "¡COPIADO!";
+            setTimeout(() => copyBtn.innerText = "COPIAR", 2000);
+        });
+
+        // Descargar
+        downloadBtn.addEventListener('click', () => {
+            const text = outputView.innerText;
+            if (text.includes('Esperando')) return;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Prompt_NEM_F6_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+        });
+    </script>
+</body>
+
+</html>

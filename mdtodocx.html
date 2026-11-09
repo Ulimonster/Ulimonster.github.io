@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown to DOCX Studio</title>
+    
+    <!-- Cargando Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plugin de Tipografía de Tailwind para estilizar el contenido Markdown -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- Librería para compilar Markdown a HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Librería para convertir HTML a Blob de DOCX de forma offline -->
+    <script src="https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* gray-100 */
+        }
+
+        .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Estilos de barra de desplazamiento personalizados */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Simular una página de papel (Word/Docs) */
+        .page-preview {
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            min-height: 297mm; /* Aproximado A4 */
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 2.5cm; /* Márgenes típicos de Word */
+        }
+
+        /* Ocultar scroll en la previsualización global y manejarlo internamente */
+        .editor-container, .preview-container {
+            height: calc(100vh - 4rem);
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col text-slate-800">
+
+    <!-- Navbar / Toolbar -->
+    <nav class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">
+                M
+            </div>
+            <h1 class="text-xl font-semibold tracking-tight text-slate-900 hidden sm:block">MD to DOCX Studio</h1>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Botón Importar -->
+            <button id="btn-import" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span class="hidden sm:inline">Importar .md</span>
+            </button>
+            <input type="file" id="file-input" accept=".md, .markdown, text/markdown" class="hidden" multiple>
+
+            <!-- Botón Exportar -->
+            <button id="btn-export" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>Exportar DOCX</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal: Split Pane -->
+    <main class="flex-1 flex flex-col md:flex-row w-full bg-slate-50 overflow-hidden relative">
+        
+        <!-- Panel Izquierdo: Editor -->
+        <div class="w-full md:w-1/2 editor-container border-r border-slate-200 bg-slate-900 flex flex-col relative group">
+            
+            <!-- Lista de múltiples archivos (Oculta por defecto) -->
+            <div id="file-list-container" class="hidden flex-col bg-slate-800 border-b border-slate-700 shrink-0 max-h-60 overflow-y-auto">
+                <div class="p-3 text-xs text-slate-400 font-mono flex items-center justify-between sticky top-0 bg-slate-800 z-10 border-b border-slate-700/50 shadow-sm">
+                    <span class="font-semibold text-slate-300">ARCHIVOS IMPORTADOS</span>
+                    <span class="text-orange-400/80 text-[10px] hidden sm:block">Reordenar recargará el texto unificado</span>
+                </div>
+                <div id="file-list" class="p-3 flex flex-col gap-2">
+                    <!-- Items insertados vía JS -->
+                </div>
+            </div>
+
+            <div class="relative flex-1 w-full h-full min-h-[300px]">
+                <div class="absolute top-2 right-4 text-xs text-slate-500 font-mono select-none pointer-events-none">
+                    EDITOR MARKDOWN
+                </div>
+                <textarea id="markdown-editor" 
+                    class="w-full h-full bg-transparent text-slate-300 font-mono p-6 resize-none focus:outline-none focus:ring-0 leading-relaxed text-sm"
+                    placeholder="Escribe tu Markdown aquí, o importa archivos usando el botón de arriba...
+
+Ejemplo:
+# Título principal
+Este es un párrafo de texto.
+
+## Subtítulo
+- Elemento 1
+- Elemento 2
+
+**Texto en negrita** e *itálica*.
+"></textarea>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Previsualización -->
+        <div class="w-full md:w-1/2 preview-container bg-slate-100 p-4 sm:p-8 relative">
+            <div class="absolute top-2 right-4 text-xs text-slate-400 font-mono select-none pointer-events-none z-10">
+                VISTA PREVIA
+            </div>
+            <div class="page-preview prose prose-slate max-w-none break-words" id="preview-content">
+                <!-- El HTML compilado se insertará aquí -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Contenedor de Notificaciones (Toast) -->
+    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
+
+    <!-- Script de lógica de la aplicación -->
+    <script>
+        // Elementos del DOM
+        const editor = document.getElementById('markdown-editor');
+        const preview = document.getElementById('preview-content');
+        const fileInput = document.getElementById('file-input');
+        const btnImport = document.getElementById('btn-import');
+        const btnExport = document.getElementById('btn-export');
+        const toastContainer = document.getElementById('toast-container');
+
+        // Configurar Marked.js para interpretar saltos de línea y sintaxis de GitHub
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        // Función para mostrar notificaciones sin usar alert()
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            
+            // Colores basados en el tipo
+            const bgClass = type === 'error' ? 'bg-red-600' : 
+                            type === 'info' ? 'bg-blue-600' : 'bg-emerald-600';
+            
+            const icon = type === 'error' ? 
+                `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>` : 
+                `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+
+            toast.className = `${bgClass} text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0`;
+            toast.innerHTML = `
+                ${icon}
+                <span class="text-sm font-medium">${message}</span>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // Animar entrada
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-10', 'opacity-0');
+            });
+
+            // Remover después de 3 segundos
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Función para renderizar el Markdown a HTML
+        function updatePreview() {
+            const markdownText = editor.value;
+            // Compilar markdown a HTML
+            const htmlContent = marked.parse(markdownText || ' ');
+            preview.innerHTML = htmlContent;
+        }
+
+        // Listener para sincronizar el editor con la previsualización en tiempo real
+        editor.addEventListener('input', updatePreview);
+
+        // Manejo del botón de Importar
+        btnImport.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Estado para almacenar y gestionar múltiples archivos
+        let uploadedFiles = [];
+
+        // Manejo de la selección de archivos múltiples
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            // Filtrar solo extensiones válidas
+            const validFiles = files.filter(f => f.name.match(/\.(md|markdown|txt)$/i));
+            if (validFiles.length !== files.length) {
+                showToast('Algunos archivos fueron omitidos (solo se permite .md o .txt)', 'info');
+            }
+            if (!validFiles.length) return;
+
+            showToast(`Procesando ${validFiles.length} archivo(s)...`, 'info');
+
+            // Leer todos los archivos seleccionados manteniendo el orden
+            const readPromises = validFiles.map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => resolve({
+                        id: Date.now() + Math.random().toString(16).slice(2),
+                        name: file.name,
+                        content: event.target.result
+                    });
+                    reader.onerror = reject;
+                    reader.readAsText(file);
+                });
+            });
+
+            try {
+                const newFiles = await Promise.all(readPromises);
+                uploadedFiles = uploadedFiles.concat(newFiles);
+                refreshWorkspace();
+                showToast(`${newFiles.length} archivo(s) añadido(s) exitosamente`);
+            } catch (error) {
+                console.error("Error leyendo archivos:", error);
+                showToast('Error al leer uno o más archivos', 'error');
+            }
+
+            // Reset input para permitir volver a cargar
+            fileInput.value = ''; 
+        });
+
+        // Actualiza la interfaz y el texto combinado
+        function refreshWorkspace() {
+            renderFileList();
+            buildCombinedContent();
+        }
+
+        // Concatena todos los archivos y actualiza el editor
+        function buildCombinedContent() {
+            if (uploadedFiles.length === 0) {
+                // Opcional: limpiar el editor si se borran todos
+                editor.value = '';
+                updatePreview();
+                return;
+            }
+            // Unificamos el contenido separándolo por dos saltos de línea
+            const combined = uploadedFiles.map(f => f.content).join('\n\n---\n\n');
+            editor.value = combined;
+            updatePreview();
+        }
+
+        // Renderiza la lista de archivos con opciones de orden y eliminación
+        function renderFileList() {
+            const container = document.getElementById('file-list-container');
+            const list = document.getElementById('file-list');
+            
+            if (uploadedFiles.length === 0) {
+                container.classList.add('hidden');
+                container.classList.remove('flex');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+            list.innerHTML = '';
+
+            uploadedFiles.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between bg-slate-700/50 rounded-lg p-2 text-sm text-slate-200 border border-slate-600/50 hover:bg-slate-700 transition-colors group';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'truncate font-medium px-2 flex-1';
+                nameSpan.textContent = file.name;
+
+                const controls = document.createElement('div');
+                controls.className = 'flex items-center gap-1 shrink-0';
+
+                // Botón Mover Arriba
+                const btnUp = document.createElement('button');
+                btnUp.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+                btnUp.className = 'p-1.5 hover:bg-slate-600 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-slate-300';
+                btnUp.disabled = index === 0;
+                btnUp.title = "Mover arriba";
+                btnUp.onclick = () => moveFile(index, -1);
+
+                // Botón Mover Abajo
+                const btnDown = document.createElement('button');
+                btnDown.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M19 12l-7 7-7-7"/></svg>`;
+                btnDown.className = 'p-1.5 hover:bg-slate-600 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-slate-300';
+                btnDown.disabled = index === uploadedFiles.length - 1;
+                btnDown.title = "Mover abajo";
+                btnDown.onclick = () => moveFile(index, 1);
+
+                // Botón Eliminar
+                const btnDel = document.createElement('button');
+                btnDel.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>`;
+                btnDel.className = 'p-1.5 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-md transition-colors ml-1';
+                btnDel.title = "Quitar archivo de la lista";
+                btnDel.onclick = () => {
+                    uploadedFiles.splice(index, 1);
+                    refreshWorkspace();
+                };
+
+                controls.append(btnUp, btnDown, btnDel);
+                item.append(nameSpan, controls);
+                list.appendChild(item);
+            });
+        }
+
+        // Mueve un elemento en el array de archivos
+        function moveFile(index, dir) {
+            if (index + dir < 0 || index + dir >= uploadedFiles.length) return;
+            const temp = uploadedFiles[index];
+            uploadedFiles[index] = uploadedFiles[index + dir];
+            uploadedFiles[index + dir] = temp;
+            refreshWorkspace();
+        }
+
+        // Manejo del botón de Exportar a DOCX
+        btnExport.addEventListener('click', () => {
+            if (!editor.value.trim()) {
+                showToast('El documento está vacío', 'error');
+                return;
+            }
+
+            try {
+                // Verificar si la librería está cargada
+                if (typeof htmlDocx === 'undefined') {
+                    showToast('Error: La librería de conversión no está lista. Revisa tu conexión de red en la primera carga.', 'error');
+                    return;
+                }
+
+                showToast('Generando documento...', 'info');
+
+                // Obtener el HTML renderizado actual
+                const contentHtml = preview.innerHTML;
+
+                // Construir un documento HTML completo con estilos básicos para el Word
+                // Estos estilos aseguran que la conversión reconozca formatos básicos
+                const fullHtmlDocument = `
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Documento Exportado</title>
+                        <style>
+                            body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #000; }
+                            h1, h2, h3, h4, h5, h6 { color: #1a1a1a; margin-top: 1.5em; margin-bottom: 0.5em; }
+                            h1 { font-size: 24pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+                            h2 { font-size: 18pt; }
+                            p { margin-bottom: 1em; }
+                            a { color: #0563c1; text-decoration: underline; }
+                            blockquote { border-left: 4px solid #ccc; padding-left: 1em; color: #666; margin-left: 0; }
+                            code { font-family: 'Courier New', monospace; background-color: #f4f4f4; padding: 2px 4px; font-size: 10pt;}
+                            pre { background-color: #f4f4f4; padding: 1em; }
+                            table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+                            th, td { border: 1px solid #999; padding: 0.5em; text-align: left; }
+                            th { background-color: #f2f2f2; }
+                            ul, ol { margin-bottom: 1em; }
+                        </style>
+                    </head>
+                    <body>
+                        ${contentHtml}
+                    </body>
+                    </html>
+                `;
+
+                // Convertir la cadena HTML a un archivo Blob (.docx) usando htmlDocx
+                const converted = htmlDocx.asBlob(fullHtmlDocument, { orientation: 'portrait' });
+
+                // Crear un enlace temporal para forzar la descarga
+                const downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(converted);
+                
+                // Generar un nombre por defecto
+                const dateString = new Date().toISOString().slice(0,10);
+                downloadLink.download = `Documento_Markdown_${dateString}.docx`;
+                
+                // Simular clic y limpiar
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(downloadLink.href);
+
+                showToast('¡Exportación a Word exitosa!');
+
+            } catch (error) {
+                console.error("Error al exportar:", error);
+                showToast('Error inesperado al generar el archivo Word', 'error');
+            }
+        });
+
+        // Renderizar el contenido inicial (ejemplo del placeholder)
+        updatePreview();
+
+    </script>
+</body>
+</html>

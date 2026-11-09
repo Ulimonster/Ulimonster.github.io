@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART Goals - Esc. Sec. Roosevelt Ercé Barrón Pech</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .animation-fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Custom scrollbar for better UI */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex">
+
+    <!-- Sidebar Desktop -->
+    <aside class="w-64 bg-slate-900 text-slate-300 hidden md:flex flex-col">
+        <div class="p-6 mb-4">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                <span class="text-blue-500" id="icon-brand"></span> SmartEdu
+            </h2>
+            <p class="text-xs text-slate-400 mt-2">Roosevelt Ercé Barrón Pech</p>
+        </div>
+        <nav class="flex-1 px-4 space-y-2" id="desktop-nav">
+            <!-- Navigation items injected via JS -->
+        </nav>
+        <div class="p-4 text-xs text-slate-500 text-center">
+            Umán, Yucatán<br/>Powered by Gemini AI
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm z-10">
+            <div>
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-blue-600" id="icon-brand-mobile"></span> SmartEdu
+                </h2>
+                <p class="text-[10px] text-slate-500">Secundaria Umán</p>
+            </div>
+            <div class="flex gap-1" id="mobile-nav">
+                <!-- Mobile Navigation items injected via JS -->
+            </div>
+        </header>
+
+        <!-- Dynamic Workspace -->
+        <div id="app-content" class="flex-1 overflow-auto p-4 md:p-8">
+            <!-- Views will be rendered here -->
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // --- ÍCONOS SVG ---
+        const Icons = {
+            Home: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+            Target: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+            List: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+            Sparkles: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>`,
+            Plus: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+            Trash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+            Edit: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+            Check: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+            X: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+            TrendingUp: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+            Settings: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
+            Download: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+            Upload: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+            FileText: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`
+        };
+
+        // --- ESTADO DE LA APLICACIÓN ---
+        // Ejemplo adaptado a la Esc. Sec. Roosevelt Ercé Barrón Pech en Umán.
+        const defaultSchoolGoal = {
+            id: "1",
+            title: "Mejorar Aprobación en Matemáticas (3er Grado)",
+            specific: "Implementar un programa de tutorías extracurriculares los martes y jueves en las instalaciones de la Esc. Sec. Roosevelt Ercé Barrón Pech para alumnos de tercer grado con rezago en Matemáticas.",
+            measurable: "Aumentar la tasa de aprobación de la materia de 70% a 85% y reducir los reportes de inasistencia a tutorías a menos del 10%.",
+            achievable: "Se utilizarán las aulas de cómputo y la biblioteca. Se asignarán 3 maestros voluntarios para impartir las asesorías.",
+            relevant: "Fortalece el nivel académico de la escuela en el municipio de Umán y asegura que los estudiantes estén mejor preparados para su ingreso al nivel medio superior.",
+            timeBound: "Para finalizar el tercer trimestre del actual ciclo escolar (Junio).",
+            kpis: [
+                { id: "k1", name: "Tasa de Aprobación", targetValue: 85, currentValue: 72, unit: "%" },
+                { id: "k2", name: "Asistencia a Tutorías", targetValue: 90, currentValue: 60, unit: "%" }
+            ]
+        };
+
+        let AppState = {
+            goals: JSON.parse(localStorage.getItem('smartGoalsSchool')) || [defaultSchoolGoal],
+            currentView: 'dashboard', // dashboard, create, list
+            editingGoal: null,
+            tempFormKpis: [] // Estado temporal para los KPIs al crear/editar
+        };
+
+        // --- UTILIDADES ---
+        const saveState = () => {
+            localStorage.setItem('smartGoalsSchool', JSON.stringify(AppState.goals));
+        };
+
+        const showToast = (message, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+            const icon = type === 'error' ? Icons.X : Icons.Check;
+            
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transition-all transform translate-y-0 opacity-100 pointer-events-auto`;
+            toast.innerHTML = `
+                ${icon}
+                <p class="font-medium text-sm">${message}</p>
+                <button onclick="this.parentElement.remove()" class="ml-2 hover:text-gray-200">${Icons.X}</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+
+        // --- NAVEGACIÓN ---
+        window.navigateTo = (view, goalId = null) => {
+            AppState.currentView = view;
+            
+            if (view === 'create') {
+                if (goalId) {
+                    AppState.editingGoal = AppState.goals.find(g => g.id === goalId);
+                    // Copia profunda de los KPIs para edición temporal
+                    AppState.tempFormKpis = JSON.parse(JSON.stringify(AppState.editingGoal.kpis)); 
+                } else {
+                    AppState.editingGoal = null;
+                    AppState.tempFormKpis = [{ id: Date.now().toString(), name: '', targetValue: '', currentValue: 0, unit: '' }];
+                }
+            }
+
+            renderNavigation();
+            renderContent();
+        };
+
+        // --- SERVICIO DE IA (GEMINI) ---
+        const generateSmartGoalWithAI = async (idea) => {
+            // Contextualización específica para la escuela
+            const systemPrompt = `Actúa como un consultor en planificación estratégica educativa y gestión escolar. Analiza la idea de objetivo proporcionada por el usuario y transfórmala ESTRICTAMENTE en un objetivo SMART profesional (Específico, Medible, Alcanzable, Relevante, Temporal). 
+            
+            CONTEXTO OBLIGATORIO: La institución es la "Esc. Sec. Roosevelt Ercé Barrón Pech, CCT 31DES2016Y", ubicada en el municipio de Umán, Yucatán. Debes adaptar la redacción para que tenga sentido en esta secundaria pública mexicana (menciona a la escuela, la ubicación o elementos del contexto escolar si es oportuno). Además, sugiere 2 a 3 KPIs para medir el éxito.
+            
+            Idea del usuario: "${idea}"`;
+
+            const payload = {
+                contents: [{ parts: [{ text: systemPrompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            title: { type: "STRING", description: "Un título corto y descriptivo." },
+                            specific: { type: "STRING", description: "S (Specific): Qué se quiere lograr, quién, dónde (Esc. Sec. Roosevelt Ercé Barrón Pech)." },
+                            measurable: { type: "STRING", description: "M (Measurable): Cómo se medirá el éxito cuantitativamente." },
+                            achievable: { type: "STRING", description: "A (Achievable): Cómo se logrará, recursos necesarios y realistas para la escuela." },
+                            relevant: { type: "STRING", description: "R (Relevant): Por qué es importante para la comunidad escolar en Umán." },
+                            timeBound: { type: "STRING", description: "T (Time-bound): Fechas límite, ciclos escolares, trimestres." },
+                            kpis: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        name: { type: "STRING", description: "Nombre del KPI (ej. Índice de Asistencia, Promedio General)" },
+                                        targetValue: { type: "NUMBER", description: "Valor meta numérico" },
+                                        unit: { type: "STRING", description: "Unidad (ej. %, alumnos, calificación)" }
+                                    }
+                                }
+                            }
+                        },
+                        required: ["title", "specific", "measurable", "achievable", "relevant", "timeBound", "kpis"]
+                    }
+                }
+            };
+
+            const apiKey = "AQ.Ab8RN6IVdsQvJCdA09DPPXogL5JTk3FdznpBM--Y1267ZmFnDA"; // API Key proveída por el entorno
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('Error en la API');
+                
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    return JSON.parse(result.candidates[0].content.parts[0].text);
+                }
+                throw new Error('Formato inválido');
+            } catch (error) {
+                console.error("Error AI:", error);
+                throw error;
+            }
+        };
+
+        // --- FUNCIONES DE RENDERIZADO ---
+        const renderNavigation = () => {
+            const views = [
+                { id: 'dashboard', icon: Icons.Home, label: 'Dashboard' },
+                { id: 'list', icon: Icons.List, label: 'Mis Objetivos' },
+                { id: 'create', icon: Icons.Plus, label: 'Nuevo Objetivo' },
+                { id: 'data', icon: Icons.Settings, label: 'Respaldos y Reportes' }
+            ];
+
+            // Render Desktop Nav
+            const desktopNav = document.getElementById('desktop-nav');
+            desktopNav.innerHTML = views.map(v => `
+                <button 
+                    onclick="window.navigateTo('${v.id}')"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${AppState.currentView === v.id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-800 hover:text-white'}"
+                >
+                    ${v.icon} ${v.label}
+                </button>
+            `).join('');
+
+            // Render Mobile Nav
+            const mobileNav = document.getElementById('mobile-nav');
+            mobileNav.innerHTML = views.map(v => `
+                <button 
+                    onclick="window.navigateTo('${v.id}')"
+                    class="p-2 rounded-lg transition-colors ${AppState.currentView === v.id ? 'bg-blue-100 text-blue-700' : 'text-slate-500'}"
+                    title="${v.label}"
+                >
+                    ${v.icon}
+                </button>
+            `).join('');
+        };
+
+        const renderContent = () => {
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.innerHTML = ''; // Clear current content
+
+            if (AppState.currentView === 'dashboard') {
+                contentDiv.innerHTML = getDashboardHTML();
+            } else if (AppState.currentView === 'list') {
+                contentDiv.innerHTML = getListHTML();
+            } else if (AppState.currentView === 'create') {
+                contentDiv.innerHTML = getFormHTML();
+                renderDynamicKpisForm(); // Renderizamos la lista de KPIs del formulario
+            } else if (AppState.currentView === 'data') {
+                contentDiv.innerHTML = getDataHTML();
+            }
+        };
+
+        // --- VISTA: DASHBOARD ---
+        const getDashboardHTML = () => {
+            const totalGoals = AppState.goals.length;
+            let totalKpiProgress = 0;
+            let kpiCount = 0;
+            
+            AppState.goals.forEach(goal => {
+                goal.kpis.forEach(kpi => {
+                    const progress = Math.min((kpi.currentValue / kpi.targetValue) * 100, 100) || 0;
+                    totalKpiProgress += progress;
+                    kpiCount++;
+                });
+            });
+
+            const avgProgress = kpiCount > 0 ? Math.round(totalKpiProgress / kpiCount) : 0;
+            const completedGoals = AppState.goals.filter(g => g.kpis.length > 0 && g.kpis.every(k => k.currentValue >= k.targetValue)).length;
+
+            let html = `
+                <div class="space-y-6 animation-fade-in pb-10">
+                    <h1 class="text-2xl font-bold text-slate-800">Panel de Control Escolar</h1>
+                    <p class="text-slate-500 text-sm mt-[-1rem]">Esc. Sec. Roosevelt Ercé Barrón Pech (Umán)</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center gap-4">
+                            <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">${Icons.Target}</div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Proyectos / Objetivos</p>
+                                <p class="text-2xl font-bold text-slate-800">${totalGoals}</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center gap-4">
+                            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">${Icons.Check}</div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Metas Alcanzadas</p>
+                                <p class="text-2xl font-bold text-slate-800">${completedGoals}</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center gap-4">
+                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg">${Icons.TrendingUp}</div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Avance Institucional</p>
+                                <p class="text-2xl font-bold text-slate-800">${avgProgress}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h2 class="text-lg font-bold text-slate-800 mb-4">Resumen de Progreso de Objetivos</h2>
+            `;
+
+            if (AppState.goals.length === 0) {
+                html += `<div class="text-center py-8 text-slate-500">No hay objetivos creados. Ve a "Nuevo Objetivo".</div>`;
+            } else {
+                html += `<div class="space-y-6">`;
+                AppState.goals.forEach(goal => {
+                    const goalProgress = goal.kpis.length > 0 
+                        ? goal.kpis.reduce((acc, kpi) => acc + Math.min((kpi.currentValue / kpi.targetValue) * 100, 100), 0) / goal.kpis.length
+                        : 0;
+
+                    html += `
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-slate-700 truncate pr-4">${goal.title}</span>
+                                <span class="text-sm font-bold text-blue-600 whitespace-nowrap">${Math.round(goalProgress)}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${goalProgress}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            html += `</div></div>`;
+            return html;
+        };
+
+        // --- VISTA: LISTA DE OBJETIVOS ---
+        const getListHTML = () => {
+            let html = `
+                <div class="space-y-6 animation-fade-in pb-10">
+                    <h1 class="text-2xl font-bold text-slate-800">Objetivos Estratégicos Escolares</h1>
+            `;
+
+            if (AppState.goals.length === 0) {
+                html += `
+                    <div class="text-center py-16 bg-white rounded-xl shadow-sm border border-slate-200">
+                        <div class="text-slate-400 mb-4 flex justify-center">${Icons.Target}</div>
+                        <h3 class="text-lg font-medium text-slate-700 mb-2">Aún no tienes objetivos</h3>
+                        <p class="text-slate-500 mb-4">Comienza a planificar para la Esc. Sec. Roosevelt Ercé Barrón Pech.</p>
+                        <button onclick="window.navigateTo('create')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Crear Primer Objetivo</button>
+                    </div>
+                `;
+            } else {
+                html += `<div class="grid grid-cols-1 gap-6">`;
+                AppState.goals.forEach(goal => {
+                    html += `
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="p-4 md:p-6 border-b border-slate-100 flex justify-between items-start">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800 mb-2">${goal.title}</h2>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
+                                        ${Icons.Target} Límite: ${goal.timeBound}
+                                    </span>
+                                </div>
+                                <div class="flex gap-1 md:gap-2">
+                                    <button onclick="window.navigateTo('create', '${goal.id}')" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
+                                        ${Icons.Edit}
+                                    </button>
+                                    <button onclick="window.deleteGoal('${goal.id}')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                                        ${Icons.Trash}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 md:p-6 bg-slate-50 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 border-b border-slate-100">
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-700 mb-1">Específico (S)</h4>
+                                    <p class="text-sm text-slate-600 leading-relaxed">${goal.specific}</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-700 mb-1">Relevante (R)</h4>
+                                    <p class="text-sm text-slate-600 leading-relaxed">${goal.relevant}</p>
+                                </div>
+                            </div>
+
+                            <div class="p-4 md:p-6">
+                                <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    ${Icons.TrendingUp} Actualizar Progreso de KPIs
+                                </h4>
+                                <div class="space-y-4">
+                    `;
+                    
+                    goal.kpis.forEach(kpi => {
+                        const progress = Math.min((kpi.currentValue / kpi.targetValue) * 100, 100) || 0;
+                        const isCompleted = progress >= 100;
+                        html += `
+                            <div class="flex flex-col md:flex-row md:items-center gap-3 p-4 border border-slate-100 rounded-lg bg-white">
+                                <div class="md:w-1/3">
+                                    <p class="font-medium text-sm text-slate-700">${kpi.name}</p>
+                                    <p class="text-xs text-slate-500">Meta: ${kpi.targetValue} ${kpi.unit}</p>
+                                </div>
+                                <div class="flex-1 flex items-center gap-4 w-full">
+                                    <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                        <div class="h-2.5 rounded-full transition-all duration-300 ${isCompleted ? 'bg-emerald-500' : 'bg-blue-500'}" style="width: ${progress}%"></div>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-600 w-10 text-right">${Math.round(progress)}%</span>
+                                </div>
+                                <div class="md:w-1/4 flex items-center gap-2 mt-2 md:mt-0">
+                                    <input 
+                                        type="number"
+                                        value="${kpi.currentValue}"
+                                        onchange="window.updateKpi('${goal.id}', '${kpi.id}', this.value)"
+                                        class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-right shadow-sm"
+                                    />
+                                    <span class="text-xs text-slate-500 font-medium">${kpi.unit}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `</div></div></div>`;
+                });
+                html += `</div>`;
+            }
+            html += `</div>`;
+            return html;
+        };
+
+        window.deleteGoal = (id) => {
+            if (confirm("¿Estás seguro de eliminar este objetivo de la escuela?")) {
+                AppState.goals = AppState.goals.filter(g => g.id !== id);
+                saveState();
+                showToast('Objetivo eliminado.');
+                renderContent();
+            }
+        };
+
+        window.updateKpi = (goalId, kpiId, value) => {
+            const numValue = Number(value);
+            const goalIndex = AppState.goals.findIndex(g => g.id === goalId);
+            if (goalIndex > -1) {
+                const kpiIndex = AppState.goals[goalIndex].kpis.findIndex(k => k.id === kpiId);
+                if (kpiIndex > -1) {
+                    AppState.goals[goalIndex].kpis[kpiIndex].currentValue = numValue;
+                    saveState();
+                    renderContent(); // Re-render para actualizar barras de progreso
+                }
+            }
+        };
+
+        // --- VISTA: FORMULARIO (CREATE/EDIT) ---
+        const getFormHTML = () => {
+            const isEditing = !!AppState.editingGoal;
+            const data = AppState.editingGoal || { title: '', specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' };
+
+            let html = `
+                <div class="space-y-6 max-w-4xl mx-auto animation-fade-in pb-16">
+                    <h1 class="text-2xl font-bold text-slate-800">
+                        ${isEditing ? 'Editar Objetivo Escolar' : 'Diseñador de Objetivos SMART'}
+                    </h1>
+            `;
+
+            // IA Assistant Section (Only on create)
+            if (!isEditing) {
+                html += `
+                    <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-5 md:p-6 border border-purple-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 text-purple-900 pointer-events-none">
+                            <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        </div>
+                        <div class="flex flex-col md:flex-row items-start gap-4 relative z-10">
+                            <div class="p-3 bg-purple-100 text-purple-600 rounded-xl md:mt-1 hidden md:block">${Icons.Sparkles}</div>
+                            <div class="flex-1 w-full">
+                                <h3 class="text-lg font-bold text-purple-900 mb-2 flex items-center gap-2">
+                                    <span class="md:hidden text-purple-600">${Icons.Sparkles}</span>
+                                    Asistente Educativo IA
+                                </h3>
+                                <p class="text-sm text-purple-800 mb-4">
+                                    Describe una meta para la <strong>Esc. Sec. Roosevelt Ercé Barrón Pech</strong>. La Inteligencia Artificial la estructurará automáticamente en formato SMART y sugerirá indicadores (KPIs).
+                                </p>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <textarea 
+                                        id="ai-idea-input"
+                                        class="flex-1 border border-purple-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none resize-none shadow-sm"
+                                        rows="2"
+                                        placeholder="Ej: Quiero que mejoremos la asistencia de los alumnos los viernes y que haya menos reportes de disciplina..."
+                                    ></textarea>
+                                    <button 
+                                        id="btn-generate-ai"
+                                        onclick="window.handleGenerateAI()"
+                                        class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-sm flex items-center justify-center min-w-[160px]"
+                                    >
+                                        Generar SMART
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Main Form
+            html += `
+                <form id="smart-form" onsubmit="window.handleSaveForm(event)" class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 md:p-6">
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Título del Proyecto / Objetivo</label>
+                            <input type="text" id="form-title" value="${data.title}" required class="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" placeholder="Ej: Programa de lectura comprensiva">
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- S -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="md:w-1/4">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-blue-600 text-white w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">S</span>
+                                        <h4 class="font-bold text-slate-800">Específico</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500">¿Qué, quién, dónde (escuela)?</p>
+                                </div>
+                                <textarea id="form-specific" required class="flex-1 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-sm" rows="3" placeholder="Detalla la meta...">${data.specific}</textarea>
+                            </div>
+                            <!-- M -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="md:w-1/4">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-emerald-500 text-white w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">M</span>
+                                        <h4 class="font-bold text-slate-800">Medible</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500">¿Cómo evaluarás el éxito?</p>
+                                </div>
+                                <textarea id="form-measurable" required class="flex-1 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none shadow-sm" rows="3">${data.measurable}</textarea>
+                            </div>
+                            <!-- A -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="md:w-1/4">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-orange-500 text-white w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">A</span>
+                                        <h4 class="font-bold text-slate-800">Alcanzable</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500">¿Recursos institucionales?</p>
+                                </div>
+                                <textarea id="form-achievable" required class="flex-1 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 outline-none resize-none shadow-sm" rows="3">${data.achievable}</textarea>
+                            </div>
+                            <!-- R -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="md:w-1/4">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-indigo-500 text-white w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">R</span>
+                                        <h4 class="font-bold text-slate-800">Relevante</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500">¿Impacto en la escuela/comunidad?</p>
+                                </div>
+                                <textarea id="form-relevant" required class="flex-1 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none shadow-sm" rows="3">${data.relevant}</textarea>
+                            </div>
+                            <!-- T -->
+                            <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="md:w-1/4">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-red-500 text-white w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">T</span>
+                                        <h4 class="font-bold text-slate-800">Temporal</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500">Fecha límite o ciclo.</p>
+                                </div>
+                                <input type="text" id="form-timebound" required value="${data.timeBound}" class="flex-1 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-500 outline-none shadow-sm" placeholder="Ej: Final del semestre actual">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección dinámica de KPIs -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 md:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Indicadores Clave (KPIs)</h3>
+                                <p class="text-xs text-slate-500">Define métricas para evaluar este objetivo escolar.</p>
+                            </div>
+                            <button type="button" onclick="window.addFormKpi()" class="flex items-center gap-1 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-lg font-medium transition-colors">
+                                ${Icons.Plus} Añadir
+                            </button>
+                        </div>
+                        <div id="kpi-list-container" class="space-y-3">
+                            <!-- KPIs renderizados dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" onclick="window.navigateTo('list')" class="px-6 py-3 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md transition-colors flex items-center gap-2">
+                            ${Icons.Check} ${isEditing ? 'Actualizar Objetivo' : 'Guardar Objetivo'}
+                        </button>
+                    </div>
+                </form>
+            `;
+            return html;
+        };
+
+        const renderDynamicKpisForm = () => {
+            const container = document.getElementById('kpi-list-container');
+            if(!container) return;
+
+            if (AppState.tempFormKpis.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-sm text-slate-500 italic border border-dashed border-slate-300 rounded-lg bg-slate-50">Sin indicadores definidos. Añade uno para medir el éxito.</div>`;
+                return;
+            }
+
+            container.innerHTML = AppState.tempFormKpis.map((kpi, index) => `
+                <div class="flex flex-col sm:flex-row gap-3 p-3 border border-slate-200 rounded-xl bg-slate-50 shadow-sm items-start sm:items-center relative">
+                    <span class="hidden sm:block font-bold text-slate-300 absolute left-[-20px]">#${index + 1}</span>
+                    <div class="flex-1 w-full">
+                        <input type="text" value="${kpi.name}" onchange="window.updateTempKpi('${kpi.id}', 'name', this.value)" placeholder="Nombre (ej. Asistencia promedio)" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div class="w-full sm:w-32 flex items-center gap-2">
+                        <label class="text-xs text-slate-500 sm:hidden">Meta:</label>
+                        <input type="number" value="${kpi.targetValue}" onchange="window.updateTempKpi('${kpi.id}', 'targetValue', this.value)" placeholder="Meta num." required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div class="w-full sm:w-28 flex items-center gap-2">
+                        <label class="text-xs text-slate-500 sm:hidden">Unidad:</label>
+                        <input type="text" value="${kpi.unit}" onchange="window.updateTempKpi('${kpi.id}', 'unit', this.value)" placeholder="Unidad (%)" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <button type="button" onclick="window.removeFormKpi('${kpi.id}')" class="absolute top-2 right-2 sm:relative sm:top-0 sm:right-0 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar KPI">
+                        ${Icons.Trash}
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.addFormKpi = () => {
+            AppState.tempFormKpis.push({ id: Date.now().toString(), name: '', targetValue: '', currentValue: 0, unit: '' });
+            renderDynamicKpisForm();
+        };
+
+        window.removeFormKpi = (id) => {
+            AppState.tempFormKpis = AppState.tempFormKpis.filter(k => k.id !== id);
+            renderDynamicKpisForm();
+        };
+
+        window.updateTempKpi = (id, field, value) => {
+            const kpi = AppState.tempFormKpis.find(k => k.id === id);
+            if (kpi) {
+                kpi[field] = field === 'targetValue' ? Number(value) : value;
+            }
+        };
+
+        window.handleSaveForm = (e) => {
+            e.preventDefault();
+            
+            // Recoger valores del DOM
+            const newGoal = {
+                id: AppState.editingGoal ? AppState.editingGoal.id : Date.now().toString(),
+                title: document.getElementById('form-title').value.trim(),
+                specific: document.getElementById('form-specific').value.trim(),
+                measurable: document.getElementById('form-measurable').value.trim(),
+                achievable: document.getElementById('form-achievable').value.trim(),
+                relevant: document.getElementById('form-relevant').value.trim(),
+                timeBound: document.getElementById('form-timebound').value.trim(),
+                // Preservar currentValue original si se está editando
+                kpis: AppState.tempFormKpis.map(k => {
+                    const existingKpi = AppState.editingGoal?.kpis?.find(ek => ek.id === k.id);
+                    return { ...k, currentValue: existingKpi ? existingKpi.currentValue : 0 };
+                })
+            };
+
+            if (AppState.editingGoal) {
+                const index = AppState.goals.findIndex(g => g.id === newGoal.id);
+                AppState.goals[index] = newGoal;
+                showToast('Objetivo actualizado correctamente.');
+            } else {
+                AppState.goals.push(newGoal);
+                showToast('Objetivo creado exitosamente.');
+            }
+
+            saveState();
+            window.navigateTo('list');
+        };
+
+        window.handleGenerateAI = async () => {
+            const inputEl = document.getElementById('ai-idea-input');
+            const btnEl = document.getElementById('btn-generate-ai');
+            const idea = inputEl.value.trim();
+
+            if (!idea) {
+                showToast('Escribe una idea relacionada a la escuela primero.', 'error');
+                inputEl.focus();
+                return;
+            }
+
+            // UI estado de carga
+            inputEl.disabled = true;
+            btnEl.disabled = true;
+            btnEl.innerHTML = `<svg class="animate-spin h-5 w-5 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Procesando...`;
+
+            try {
+                const aiResult = await generateSmartGoalWithAI(idea);
+                
+                // Actualizar inputs del DOM
+                document.getElementById('form-title').value = aiResult.title || '';
+                document.getElementById('form-specific').value = aiResult.specific || '';
+                document.getElementById('form-measurable').value = aiResult.measurable || '';
+                document.getElementById('form-achievable').value = aiResult.achievable || '';
+                document.getElementById('form-relevant').value = aiResult.relevant || '';
+                document.getElementById('form-timebound').value = aiResult.timeBound || '';
+
+                // Actualizar KPIs temporales y re-renderizar
+                if (aiResult.kpis && aiResult.kpis.length > 0) {
+                    AppState.tempFormKpis = aiResult.kpis.map((kpi, idx) => ({
+                        id: Date.now().toString() + idx,
+                        name: kpi.name,
+                        targetValue: kpi.targetValue,
+                        currentValue: 0,
+                        unit: kpi.unit
+                    }));
+                    renderDynamicKpisForm();
+                }
+
+                showToast('¡Estructura SMART generada con éxito!', 'success');
+            } catch (error) {
+                showToast('Hubo un error con la IA. Intenta de nuevo.', 'error');
+            } finally {
+                // Restaurar UI
+                inputEl.disabled = false;
+                btnEl.disabled = false;
+                btnEl.innerHTML = 'Generar SMART';
+            }
+        };
+
+        // --- VISTA: RESPALDOS Y REPORTES ---
+        const getDataHTML = () => {
+            return `
+                <div class="space-y-6 max-w-4xl mx-auto animation-fade-in pb-16">
+                    <h1 class="text-2xl font-bold text-slate-800">Respaldos y Reportes</h1>
+                    <p class="text-slate-500 text-sm mt-[-1rem]">Exporta tus objetivos para presentaciones, o crea respaldos para continuar después en otra computadora.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Respaldos JSON -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h2 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">${Icons.Settings} Datos / Backup (JSON)</h2>
+                            <p class="text-sm text-slate-600 mb-6">Guarda tu progreso actual en un archivo para importarlo posteriormente.</p>
+                            
+                            <div class="flex flex-col gap-3">
+                                <button onclick="window.exportJSON()" class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors">
+                                    ${Icons.Download} Exportar a JSON (Descargar Backup)
+                                </button>
+                                
+                                <div class="relative mt-2">
+                                    <input type="file" id="import-file" accept=".json" class="hidden" onchange="window.importJSON(event)">
+                                    <button onclick="document.getElementById('import-file').click()" class="w-full flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg font-medium transition-colors">
+                                        ${Icons.Upload} Importar desde JSON (Cargar Backup)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reportes Documentos -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h2 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">${Icons.FileText} Generar Reportes</h2>
+                            <p class="text-sm text-slate-600 mb-6">Descarga un documento formateado con todos tus objetivos, justificaciones y progreso actual de KPIs.</p>
+                            
+                            <div class="flex flex-col gap-3">
+                                <button onclick="window.exportDOC()" class="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-sm">
+                                    ${Icons.FileText} Generar Reporte Word (.doc)
+                                </button>
+                                <button onclick="window.exportMD()" class="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-sm mt-2">
+                                    ${Icons.FileText} Generar Reporte Markdown (.md)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // Utilidad base para descargar archivos
+        window.downloadFile = (content, fileName, mimeType) => {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        // Lógicas de Exportación e Importación
+        window.exportJSON = () => {
+            const data = JSON.stringify(AppState.goals, null, 2);
+            window.downloadFile(data, 'Backup_Objetivos_Roosevelt.json', 'application/json');
+            showToast('Respaldo JSON exportado correctamente.');
+        };
+
+        window.importJSON = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedGoals = JSON.parse(e.target.result);
+                    if (Array.isArray(importedGoals)) {
+                        AppState.goals = importedGoals;
+                        saveState();
+                        showToast('Datos importados correctamente.');
+                        renderContent(); // Actualiza la vista
+                    } else {
+                        showToast('El formato del archivo JSON no es válido.', 'error');
+                    }
+                } catch (error) {
+                    showToast('Error al leer el archivo JSON.', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Resetear el input para permitir recargar el mismo archivo
+        };
+
+        window.exportMD = () => {
+            let md = "# Reporte de Objetivos Estratégicos SMART\n\n**Esc. Sec. Roosevelt Ercé Barrón Pech (Umán, Yucatán)**\n\n---\n\n";
+            
+            if(AppState.goals.length === 0) {
+                md += "*No hay objetivos registrados actualmente.*\n";
+            } else {
+                AppState.goals.forEach((g, index) => {
+                    md += `## ${index + 1}. ${g.title}\n\n`;
+                    md += `### Desglose SMART\n`;
+                    md += `- **Específico (S):** ${g.specific}\n`;
+                    md += `- **Medible (M):** ${g.measurable}\n`;
+                    md += `- **Alcanzable (A):** ${g.achievable}\n`;
+                    md += `- **Relevante (R):** ${g.relevant}\n`;
+                    md += `- **Temporal (T):** ${g.timeBound}\n\n`;
+                    
+                    md += `### Indicadores Clave de Rendimiento (KPIs)\n`;
+                    if(g.kpis.length === 0) {
+                        md += `*Sin KPIs registrados.*\n\n`;
+                    } else {
+                        g.kpis.forEach(k => {
+                            const progress = Math.min((k.currentValue / k.targetValue) * 100, 100) || 0;
+                            md += `- **${k.name}:** ${k.currentValue} / ${k.targetValue} ${k.unit} (Avance: ${progress.toFixed(1)}%)\n`;
+                        });
+                        md += `\n`;
+                    }
+                    md += `---\n\n`;
+                });
+            }
+
+            window.downloadFile(md, 'Reporte_SMART_Roosevelt.md', 'text/markdown');
+            showToast('Reporte Markdown (.md) generado con éxito.');
+        };
+
+        window.exportDOC = () => {
+            let htmlContent = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>Reporte de Objetivos SMART</title>
+                    <style>
+                        body { font-family: 'Arial', sans-serif; color: #333; line-height: 1.6; }
+                        h1 { color: #1e3a8a; text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+                        h2 { color: #2563eb; margin-top: 20px; font-size: 16pt; }
+                        h3 { color: #475569; font-size: 14pt; margin-bottom: 5px; }
+                        p, li { font-size: 12pt; }
+                        .kpi-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; margin-top: 10px; }
+                        .progress { font-weight: bold; color: #059669; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Reporte de Objetivos Estratégicos SMART</h1>
+                    <p style="text-align: center; font-size: 14pt; font-weight: bold; color: #475569;">Esc. Sec. Roosevelt Ercé Barrón Pech (Umán, Yucatán)</p>
+                    <hr>
+            `;
+
+            if(AppState.goals.length === 0) {
+                htmlContent += `<p>No hay objetivos registrados actualmente.</p>`;
+            } else {
+                AppState.goals.forEach((g, index) => {
+                    htmlContent += `
+                        <h2>${index + 1}. ${g.title}</h2>
+                        <h3>Desglose SMART</h3>
+                        <ul>
+                            <li><strong>Específico (S):</strong> ${g.specific}</li>
+                            <li><strong>Medible (M):</strong> ${g.measurable}</li>
+                            <li><strong>Alcanzable (A):</strong> ${g.achievable}</li>
+                            <li><strong>Relevante (R):</strong> ${g.relevant}</li>
+                            <li><strong>Temporal (T):</strong> ${g.timeBound}</li>
+                        </ul>
+                        <h3>Indicadores Clave de Rendimiento (KPIs)</h3>
+                    `;
+                    
+                    if(g.kpis.length === 0) {
+                        htmlContent += `<p><em>Sin KPIs registrados.</em></p>`;
+                    } else {
+                        htmlContent += `<div class="kpi-box"><ul>`;
+                        g.kpis.forEach(k => {
+                            const progress = Math.min((k.currentValue / k.targetValue) * 100, 100) || 0;
+                            htmlContent += `<li><strong>${k.name}:</strong> ${k.currentValue} / ${k.targetValue} ${k.unit} <span class="progress">(Avance: ${progress.toFixed(1)}%)</span></li>`;
+                        });
+                        htmlContent += `</ul></div><br><hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;">`;
+                    }
+                });
+            }
+
+            htmlContent += `</body></html>`;
+            
+            // Usamos un Blob con BOM (Byte Order Mark) ufeff para que Microsoft Word respete los acentos (UTF-8).
+            const blob = new Blob(['\ufeff', htmlContent], {
+                type: 'application/msword;charset=utf-8'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Reporte_SMART_Roosevelt.doc';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('Reporte Word (.doc) generado con éxito.');
+        };
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inyectar íconos estáticos
+            document.getElementById('icon-brand').innerHTML = Icons.Target;
+            document.getElementById('icon-brand-mobile').innerHTML = Icons.Target;
+            
+            // Iniciar renderizado
+            renderNavigation();
+            renderContent();
+        });
+
+    </script>
+</body>
+</html>

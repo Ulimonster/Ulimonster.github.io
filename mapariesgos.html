@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Matriz de Riesgos</title>
+    <!-- Librerías de Chart.js y DataLabels -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .btn-success { background-color: #2ecc71; }
+        .btn-success:hover { background-color: #27ae60; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th { background-color: #f8f9fa; }
+        
+        .chart-container {
+            position: relative;
+            height: 500px;
+            width: 100%;
+            background: white;
+        }
+        .toolbar {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel">
+        <h1>Matriz de Riesgos</h1>
+        <p>Ingresa los datos para alimentar la matriz.</p>
+        
+        <div class="form-group">
+            <label for="idRiesgo">ID del Riesgo</label>
+            <input type="text" id="idRiesgo" placeholder="Ej. R01">
+        </div>
+        <div class="form-group">
+            <label for="descRiesgo">Descripción del Riesgo</label>
+            <input type="text" id="descRiesgo" placeholder="Ej. Robo de equipo en taller">
+        </div>
+        <div class="form-group">
+            <label for="probabilidad">Probabilidad (0 a 10)</label>
+            <input type="number" id="probabilidad" min="0" max="10" step="1" value="5">
+        </div>
+        <div class="form-group">
+            <label for="impacto">Impacto (0 a 10)</label>
+            <input type="number" id="impacto" min="0" max="10" step="1" value="5">
+        </div>
+        <button onclick="agregarRiesgo()">Añadir Riesgo</button>
+
+        <table id="tablaRiesgos">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Riesgo</th>
+                    <th>Prob.</th>
+                    <th>Imp.</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Los datos se insertarán aquí -->
+            </tbody>
+        </table>
+
+        <div class="toolbar">
+            <button class="btn-success" onclick="exportarJSON()">Exportar a JSON</button>
+            <button class="btn-success" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
+            <input type="file" id="fileInput" accept=".json" onchange="importarJSON(event)">
+            <button onclick="descargarImagen()">Descargar Gráfico (PNG)</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="chart-container">
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Datos iniciales contextualizados
+    let riesgos = [
+        { id: "R01", desc: "Problemas de drenaje local", prob: 3, imp: 5 },
+        { id: "R02", desc: "Robo en taller de electrónica", prob: 4, imp: 8 },
+        { id: "R03", desc: "Vulnerabilidad digital en alumnos", prob: 7, imp: 7 },
+        { id: "R04", desc: "Conflictos viales al ingreso", prob: 6, imp: 4 },
+        { id: "R05", desc: "Incendio en taller o instalación eléctrica", prob: 4, imp: 9 },
+        { id: "R06", desc: "Vertido de líquidos peligrosos", prob: 5, imp: 6 }
+    ];
+
+    let riskChart;
+
+    // Plugin personalizado para dibujar los 4 cuadrantes de colores
+    const quadrantBackgroundPlugin = {
+        id: 'quadrantBackground',
+        beforeDraw: (chart) => {
+            const { ctx, chartArea: { top, bottom, left, right }, scales: { x, y } } = chart;
+            const midX = x.getPixelForValue(5);
+            const midY = y.getPixelForValue(5);
+
+            ctx.save();
+            // Cuadrante 1: Superior Izquierdo (Amarillo - Alta Prob / Bajo Impacto)
+            ctx.fillStyle = 'rgba(255, 235, 59, 0.4)';
+            ctx.fillRect(left, top, midX - left, midY - top);
+            
+            // Cuadrante 2: Superior Derecho (Rojo - Alta Prob / Alto Impacto)
+            ctx.fillStyle = 'rgba(244, 67, 54, 0.4)';
+            ctx.fillRect(midX, top, right - midX, midY - top);
+            
+            // Cuadrante 3: Inferior Izquierdo (Verde - Baja Prob / Bajo Impacto)
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
+            ctx.fillRect(left, midY, midX - left, bottom - midY);
+            
+            // Cuadrante 4: Inferior Derecho (Naranja - Baja Prob / Alto Impacto)
+            ctx.fillStyle = 'rgba(255, 152, 0, 0.4)';
+            ctx.fillRect(midX, midY, right - midX, bottom - midY);
+            
+            ctx.restore();
+        }
+    };
+
+    // Plugin para asegurar fondo blanco al descargar PNG
+    const whiteBackgroundPlugin = {
+        id: 'customCanvasBackgroundColor',
+        beforeDraw: (chart, args, options) => {
+            const {ctx} = chart;
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = options.color || '#ffffff';
+            ctx.fillRect(0, 0, chart.width, chart.height);
+            ctx.restore();
+        }
+    };
+
+    function inicializarGrafico() {
+        // Registrar el plugin de etiquetas
+        Chart.register(ChartDataLabels);
+
+        const ctx = document.getElementById('riskChart').getContext('2d');
+        riskChart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Riesgos',
+                    data: obtenerDatosGrafico(),
+                    backgroundColor: '#2c3e50',
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                    pointRadius: 8,
+                    pointHoverRadius: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Impacto (0 - 10)', font: { weight: 'bold' } },
+                        min: 0,
+                        max: 10,
+                        ticks: { stepSize: 1 }
+                    },
+                    y: {
+                        title: { display: true, text: 'Probabilidad (0 - 10)', font: { weight: 'bold' } },
+                        min: 0,
+                        max: 10,
+                        ticks: { stepSize: 1 }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const riesgo = riesgos[context.dataIndex];
+                                return `${riesgo.id}: ${riesgo.desc} (Prob: ${riesgo.prob}, Imp: ${riesgo.imp})`;
+                            }
+                        }
+                    },
+                    customCanvasBackgroundColor: { color: 'white' },
+                    datalabels: {
+                        color: '#000', // Color del texto
+                        align: 'top',  // Posición respecto al punto
+                        offset: 4,     // Distancia del punto
+                        font: {
+                            weight: 'bold',
+                            size: 12
+                        },
+                        formatter: function(value) {
+                            // value.x es el impacto, value.y es la probabilidad
+                            return '(' + value.y + ', ' + value.x + ')'; 
+                        }
+                    }
+                }
+            },
+            plugins: [quadrantBackgroundPlugin, whiteBackgroundPlugin, ChartDataLabels]
+        });
+    }
+
+    function obtenerDatosGrafico() {
+        return riesgos.map(r => ({ x: r.imp, y: r.prob }));
+    }
+
+    function actualizarInterfaz() {
+        // Actualizar Tabla
+        const tbody = document.querySelector('#tablaRiesgos tbody');
+        tbody.innerHTML = '';
+        riesgos.forEach((r, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.id}</td>
+                <td>${r.desc}</td>
+                <td>${r.prob}</td>
+                <td>${r.imp}</td>
+                <td><button class="btn-danger" onclick="eliminarRiesgo(${index})">X</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Actualizar Gráfico
+        riskChart.data.datasets[0].data = obtenerDatosGrafico();
+        riskChart.update();
+    }
+
+    function agregarRiesgo() {
+        const id = document.getElementById('idRiesgo').value;
+        const desc = document.getElementById('descRiesgo').value;
+        const prob = parseFloat(document.getElementById('probabilidad').value);
+        const imp = parseFloat(document.getElementById('impacto').value);
+
+        if (!id || !desc || isNaN(prob) || isNaN(imp)) {
+            alert('Por favor, completa todos los campos correctamente.');
+            return;
+        }
+
+        riesgos.push({ id, desc, prob, imp });
+        actualizarInterfaz();
+        
+        // Limpiar campos
+        document.getElementById('idRiesgo').value = '';
+        document.getElementById('descRiesgo').value = '';
+        document.getElementById('idRiesgo').focus();
+    }
+
+    function eliminarRiesgo(index) {
+        riesgos.splice(index, 1);
+        actualizarInterfaz();
+    }
+
+    function exportarJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(riesgos, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "matriz_riesgos.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function importarJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importado = JSON.parse(e.target.result);
+                if (Array.isArray(importado)) {
+                    riesgos = importado;
+                    actualizarInterfaz();
+                    alert("Datos importados con éxito.");
+                } else {
+                    alert("El archivo JSON no tiene el formato correcto.");
+                }
+            } catch (error) {
+                alert("Error al leer el archivo JSON.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Resetear input
+    }
+
+    function descargarImagen() {
+        const url_base64 = riskChart.toBase64Image();
+        const a = document.createElement('a');
+        a.href = url_base64;
+        a.download = 'matriz_de_riesgos.png';
+        a.click();
+    }
+
+    // Inicialización al cargar la página
+    window.onload = () => {
+        inicializarGrafico();
+        actualizarInterfaz();
+    };
+</script>
+</body>
+</html>

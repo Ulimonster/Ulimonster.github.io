@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Roles - Centros de Cómputo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .modal-enter { animation: modalFadeIn 0.2s ease-out; }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        .grid-cell { transition: all 0.15s ease; }
+        .grid-cell:hover:not(.disabled) { filter: brightness(0.95); transform: scale(0.98); }
+        
+        /* Celdas del resultado */
+        .result-cell { transition: all 0.15s ease; cursor: pointer; position: relative; }
+        .result-cell:hover { background-color: #f9fafb; border-color: #93c5fd; }
+        .result-cell .edit-icon { opacity: 0; transition: opacity 0.15s ease; position: absolute; inset: 0; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; }
+        .result-cell:hover .edit-icon { opacity: 1; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-gray-800">
+
+    <header class="bg-white border-b border-gray-200 shadow-sm px-6 py-4 flex justify-between items-center z-10 shrink-0">
+        <div>
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                Generador de Roles CC
+            </h1>
+            <p class="text-xs text-gray-500 mt-1">Gestión offline de laboratorios</p>
+        </div>
+        <div class="flex gap-3">
+            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+            <button onclick="document.getElementById('importFile').click()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Importar
+            </button>
+            <button onclick="exportJSON()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Exportar JSON
+            </button>
+            <button onclick="generateRoles()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium shadow-md transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> Generar Roles
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Panel: Teachers -->
+        <aside class="w-80 bg-white border-r border-gray-200 flex flex-col z-0 shrink-0">
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <h2 class="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Agregar Docente</h2>
+                <div class="space-y-2">
+                    <input type="text" id="newTeacherName" placeholder="Nombre del docente..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <select id="newTeacherPref" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-gray-700">
+                        <option value="none">Sin preferencia de CC</option>
+                        <option value="cc1">Preferir CC1</option>
+                        <option value="cc2">Preferir CC2</option>
+                    </select>
+                    <button onclick="addTeacher()" class="w-full bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Añadir</button>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-white border-b border-gray-100 flex justify-between items-center">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Lista de Docentes</h2>
+                <span id="teacherCount" class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-medium">0</span>
+            </div>
+            <div id="teachersList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Teachers will be injected here -->
+            </div>
+        </aside>
+
+        <!-- Right Panel: Workspace -->
+        <section class="flex-1 flex flex-col bg-gray-50 overflow-hidden relative">
+            
+            <!-- Tabs -->
+            <div class="bg-white px-6 border-b border-gray-200 flex gap-6 shrink-0 pt-2">
+                <button onclick="switchTab('input')" id="tab-input" class="pb-3 px-1 border-b-2 border-blue-600 text-blue-600 font-medium text-sm transition-colors">Asignar Horarios</button>
+                <button onclick="switchTab('result')" id="tab-result" class="pb-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">Roles Generados</button>
+            </div>
+
+            <!-- Tab 1: Input -->
+            <div id="view-input" class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-4 bg-white border-b border-gray-200 shadow-sm shrink-0 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="text-sm">
+                            <span class="text-gray-500">Docente Activo:</span>
+                            <span id="activeTeacherLabel" class="font-bold text-blue-700 ml-1">Ninguno</span>
+                        </div>
+                        <div class="h-6 w-px bg-gray-300"></div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm text-gray-500">Grupo:</label>
+                            <select id="groupSelector" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 bg-white">
+                                <!-- Groups injected via JS -->
+                            </select>
+                        </div>
+                        <div class="h-6 w-px bg-gray-300"></div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm text-gray-500">Materia:</label>
+                            <select id="subjectSelector" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 bg-white">
+                                <option value="info">Informática (Máx 3)</option>
+                                <option value="tut">Tutoría (Máx 1)</option>
+                                <option value="ic">Int. Curricular (Máx 1)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        Haz clic en las celdas para asignar al docente.
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-auto p-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-[800px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="bg-gray-100 border-b border-r border-gray-200 p-3 text-xs font-semibold text-gray-600 uppercase w-32 text-center">Módulo</th>
+                                    <th class="bg-gray-100 border-b border-gray-200 p-3 text-xs font-semibold text-gray-600 uppercase text-center w-1/5">Lunes</th>
+                                    <th class="bg-gray-100 border-b border-gray-200 p-3 text-xs font-semibold text-gray-600 uppercase text-center w-1/5">Martes</th>
+                                    <th class="bg-gray-100 border-b border-gray-200 p-3 text-xs font-semibold text-gray-600 uppercase text-center w-1/5">Miércoles</th>
+                                    <th class="bg-gray-100 border-b border-gray-200 p-3 text-xs font-semibold text-gray-600 uppercase text-center w-1/5">Jueves</th>
+                                    <th class="bg-gray-100 border-b border-gray-200 p-3 text-xs font-semibold text-gray-600 uppercase text-center w-1/5">Viernes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleGrid">
+                                <!-- Grid injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Result -->
+            <div id="view-result" class="flex-1 flex flex-col hidden overflow-hidden">
+                <div class="p-4 bg-white border-b border-gray-200 shadow-sm shrink-0 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800">Roles de Laboratorio</h2>
+                        <p class="text-xs text-gray-500" id="resultStats">Genera los roles para ver los resultados.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="exportMarkdownBtn" onclick="exportMarkdown()" class="hidden bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v10a2 2 0 01-2 2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12v6m0 0l-2-2m2 2l2-2"></path></svg> Exportar a MD
+                        </button>
+                        <button id="exportWordBtn" onclick="exportWord()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Exportar a Word
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto p-6" id="resultContainer">
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                        <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        <p>No se han generado roles. Ve a "Asignar Horarios" e ingresa los datos.</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Modal Message Box -->
+    <div id="messageBox" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 modal-enter">
+            <h3 id="mb-title" class="text-lg font-bold text-gray-900 mb-2">Mensaje</h3>
+            <p id="mb-msg" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-end">
+                <button onclick="closeMessageBox()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirm Box -->
+    <div id="confirmBox" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 modal-enter">
+            <h3 id="cb-title" class="text-lg font-bold text-gray-900 mb-2">Confirmar</h3>
+            <p id="cb-msg" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeConfirmBox(false)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium">Cancelar</button>
+                <button onclick="closeConfirmBox(true)" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Docente -->
+    <div id="editTeacherModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 modal-enter">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Editar Docente</h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input type="text" id="editTeacherName" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Preferencia de Laboratorio</label>
+                    <select id="editTeacherPref" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-gray-700">
+                        <option value="none">Sin preferencia</option>
+                        <option value="cc1">Preferir CC1</option>
+                        <option value="cc2">Preferir CC2</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeEditTeacherModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">Cancelar</button>
+                <button onclick="saveTeacherEdit()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Reasignación Manual -->
+    <div id="reassignModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 modal-enter">
+            <h3 class="text-lg font-bold text-gray-900 mb-1">Reasignación Manual</h3>
+            <p id="reassignSubtitle" class="text-sm text-gray-500 mb-4"></p>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Selecciona el grupo a asignar en este espacio:</label>
+                    <select id="reassignSelect" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-gray-700">
+                        <!-- Opciones inyectadas por JS -->
+                    </select>
+                    <p class="text-xs text-gray-400 mt-2">Nota: Si eliges un grupo que ya está en el otro laboratorio en esta misma hora, ambos se intercambiarán automáticamente.</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeReassignModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">Cancelar</button>
+                <button onclick="saveReassignment()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+        const PERIODS = [
+            { id: 1, time: '7:00 - 7:50', isReceso: false },
+            { id: 2, time: '7:50 - 8:40', isReceso: false },
+            { id: 3, time: '8:40 - 9:25', isReceso: false },
+            { id: 4, time: '9:25 - 9:55', isReceso: true, label: 'RECESO' },
+            { id: 5, time: '9:55 - 10:40', isReceso: false },
+            { id: 6, time: '10:40 - 11:30', isReceso: false },
+            { id: 7, time: '11:30 - 12:20', isReceso: false },
+            { id: 8, time: '12:20 - 13:10', isReceso: false }
+        ];
+        
+        const GROUPS = [];
+        ['1', '2', '3'].forEach(grade => {
+            ['A', 'B', 'C', 'D', 'E', 'F'].forEach(letter => {
+                GROUPS.push(`${grade}${letter}`);
+            });
+        });
+
+        const SUBJECTS = [
+            { id: 'info', name: 'Informática', abbr: 'Inf', limit: 3 },
+            { id: 'tut', name: 'Tutoría', abbr: 'Tut', limit: 1 },
+            { id: 'ic', name: 'Int. Curricular', abbr: 'IC', limit: 1 }
+        ];
+
+        const GROUP_COLORS = {
+            '1A': 'bg-red-500', '1B': 'bg-red-600', '1C': 'bg-orange-500', '1D': 'bg-orange-600', '1E': 'bg-amber-500', '1F': 'bg-amber-600',
+            '2A': 'bg-green-500', '2B': 'bg-green-600', '2C': 'bg-emerald-500', '2D': 'bg-emerald-600', '2E': 'bg-teal-500', '2F': 'bg-teal-600',
+            '3A': 'bg-blue-500', '3B': 'bg-blue-600', '3C': 'bg-indigo-500', '3D': 'bg-indigo-600', '3E': 'bg-purple-500', '3F': 'bg-purple-600'
+        };
+
+        const COLORS = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500'];
+
+        // App State
+        let state = {
+            teachers: [],
+            assignments: [], // { id, teacherId, groupId, subjectId, day, periodId }
+            activeTeacherId: null,
+            roles: null // The generated result
+        };
+
+        let confirmCallback = null;
+        let editingTeacherId = null;
+        let currentReassignTarget = null; // { day, periodId, ccKey }
+
+        // UI Helpers (Modals replacing alert/confirm)
+        function showMessage(title, msg) {
+            document.getElementById('mb-title').innerText = title;
+            document.getElementById('mb-msg').innerText = msg;
+            document.getElementById('messageBox').classList.remove('hidden');
+        }
+
+        function closeMessageBox() {
+            document.getElementById('messageBox').classList.add('hidden');
+        }
+
+        function showConfirm(title, msg, callback) {
+            document.getElementById('cb-title').innerText = title;
+            document.getElementById('cb-msg').innerText = msg;
+            confirmCallback = callback;
+            document.getElementById('confirmBox').classList.remove('hidden');
+        }
+
+        function closeConfirmBox(result) {
+            document.getElementById('confirmBox').classList.add('hidden');
+            if (confirmCallback) confirmCallback(result);
+            confirmCallback = null;
+        }
+
+        // Persistance
+        function saveState() {
+            localStorage.setItem('ccRolesData', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const data = localStorage.getItem('ccRolesData');
+            if (data) {
+                try {
+                    state = JSON.parse(data);
+                    // Handle retro-compatibility
+                    state.teachers.forEach(t => {
+                        if(!t.labPreference) t.labPreference = 'none';
+                    });
+                    state.assignments.forEach(a => {
+                        if(!a.subjectId) a.subjectId = 'info';
+                    });
+                } catch(e) {
+                    console.error("Error loading state", e);
+                }
+            }
+        }
+
+        function init() {
+            loadState();
+            
+            // Populate Group Selector
+            const groupSelect = document.getElementById('groupSelector');
+            GROUPS.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.innerText = `Grupo ${g}`;
+                groupSelect.appendChild(opt);
+            });
+
+            renderTeachers();
+            renderGrid();
+            
+            if(state.roles) {
+                renderResult();
+            }
+        }
+
+        function addTeacher() {
+            const nameInput = document.getElementById('newTeacherName');
+            const prefInput = document.getElementById('newTeacherPref');
+            const name = nameInput.value.trim();
+            const pref = prefInput.value;
+            
+            if (!name) {
+                showMessage("Aviso", "Ingresa el nombre del docente.");
+                return;
+            }
+
+            const newTeacher = {
+                id: 't_' + Date.now(),
+                name: name,
+                labPreference: pref,
+                color: COLORS[state.teachers.length % COLORS.length]
+            };
+
+            state.teachers.push(newTeacher);
+            if (!state.activeTeacherId) state.activeTeacherId = newTeacher.id;
+            
+            nameInput.value = '';
+            prefInput.value = 'none';
+            
+            saveState();
+            renderTeachers();
+            renderGrid();
+        }
+
+        function selectTeacher(id) {
+            state.activeTeacherId = id;
+            renderTeachers();
+            renderGrid();
+        }
+
+        function deleteTeacher(id) {
+            showConfirm("Eliminar Docente", "¿Estás seguro de que deseas eliminar este docente y todas sus horas asignadas?", (confirmed) => {
+                if (confirmed) {
+                    state.teachers = state.teachers.filter(t => t.id !== id);
+                    state.assignments = state.assignments.filter(a => a.teacherId !== id);
+                    if (state.activeTeacherId === id) {
+                        state.activeTeacherId = state.teachers.length > 0 ? state.teachers[0].id : null;
+                    }
+                    saveState();
+                    renderTeachers();
+                    renderGrid();
+                }
+            });
+        }
+
+        // Edit Teacher Modal Logic
+        function openEditTeacherModal(id) {
+            const teacher = state.teachers.find(t => t.id === id);
+            if (!teacher) return;
+            
+            editingTeacherId = id;
+            document.getElementById('editTeacherName').value = teacher.name;
+            document.getElementById('editTeacherPref').value = teacher.labPreference || 'none';
+            document.getElementById('editTeacherModal').classList.remove('hidden');
+        }
+
+        function closeEditTeacherModal() {
+            document.getElementById('editTeacherModal').classList.add('hidden');
+            editingTeacherId = null;
+        }
+
+        function saveTeacherEdit() {
+            if (!editingTeacherId) return;
+            
+            const newName = document.getElementById('editTeacherName').value.trim();
+            const newPref = document.getElementById('editTeacherPref').value;
+            
+            if (!newName) {
+                showMessage("Aviso", "El nombre no puede estar vacío.");
+                return;
+            }
+            
+            const teacher = state.teachers.find(t => t.id === editingTeacherId);
+            if (teacher) {
+                teacher.name = newName;
+                teacher.labPreference = newPref;
+            }
+            
+            closeEditTeacherModal();
+            saveState();
+            renderTeachers();
+            renderGrid();
+            
+            if (state.roles) {
+                showMessage("Aviso", "Modificaste un docente. Deberás 'Generar Roles' nuevamente para aplicar los cambios.");
+            }
+        }
+
+        function renderTeachers() {
+            const container = document.getElementById('teachersList');
+            document.getElementById('teacherCount').innerText = state.teachers.length;
+            container.innerHTML = '';
+            
+            if (state.teachers.length === 0) {
+                container.innerHTML = '<div class="text-sm text-gray-400 p-4 text-center">Sin docentes registrados.</div>';
+                document.getElementById('activeTeacherLabel').innerText = "Ninguno";
+                return;
+            }
+
+            let activeName = "Ninguno";
+
+            state.teachers.forEach(t => {
+                const isActive = t.id === state.activeTeacherId;
+                if (isActive) activeName = t.name;
+
+                const pref = t.labPreference || 'none';
+                const prefLabel = pref === 'cc1' ? 'Pref: CC1' : (pref === 'cc2' ? 'Pref: CC2' : 'Sin pref.');
+                const prefClass = pref === 'cc1' ? 'text-blue-700 bg-blue-100' : (pref === 'cc2' ? 'text-purple-700 bg-purple-100' : 'text-gray-500 bg-gray-100');
+
+                const div = document.createElement('div');
+                div.className = `flex justify-between items-center p-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-100 border border-transparent'}`;
+                div.onclick = () => selectTeacher(t.id);
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-3 h-3 rounded-full flex-shrink-0 bg-gray-400"></div>
+                        <div class="flex flex-col truncate">
+                            <span class="font-medium text-sm text-gray-700 truncate">${t.name}</span>
+                            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded w-fit mt-0.5 ${prefClass}">${prefLabel}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center flex-shrink-0">
+                        <button onclick="event.stopPropagation(); openEditTeacherModal('${t.id}')" class="text-gray-400 hover:text-blue-500 p-1" title="Editar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="event.stopPropagation(); deleteTeacher('${t.id}')" class="text-gray-400 hover:text-red-500 p-1" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('activeTeacherLabel').innerText = activeName;
+        }
+
+        function toggleAssignment(day, periodId) {
+            if (!state.activeTeacherId) {
+                showMessage("Aviso", "Primero selecciona o añade un docente.");
+                return;
+            }
+
+            const groupId = document.getElementById('groupSelector').value;
+            const subjectId = document.getElementById('subjectSelector').value;
+            
+            // Check if teacher is already assigned to THIS group in THIS slot (regardless of subject, to allow toggling off)
+            const existingIndex = state.assignments.findIndex(a => a.day === day && a.periodId === periodId && a.teacherId === state.activeTeacherId && a.groupId === groupId);
+            
+            if (existingIndex > -1) {
+                // Remove it
+                state.assignments.splice(existingIndex, 1);
+            } else {
+                // Validation 1: Is the group already assigned to a different teacher in this slot?
+                const conflictGroup = state.assignments.find(a => a.day === day && a.periodId === periodId && a.groupId === groupId);
+                if (conflictGroup) {
+                    const conflictTeacher = state.teachers.find(t => t.id === conflictGroup.teacherId);
+                    showMessage("Conflicto", `El grupo ${groupId} ya está con el docente ${conflictTeacher ? conflictTeacher.name : 'Desconocido'} en esta hora.`);
+                    return;
+                }
+
+                // Validation 2: Check limits for the selected subject
+                const subjConfig = SUBJECTS.find(s => s.id === subjectId);
+                const currentSubjectCount = state.assignments.filter(a => a.groupId === groupId && a.subjectId === subjectId).length;
+                if (currentSubjectCount >= subjConfig.limit) {
+                    showMessage("Límite Alcanzado", `El grupo ${groupId} ya tiene el máximo permitido (${subjConfig.limit}) de horas semanales para ${subjConfig.name}.`);
+                    return;
+                }
+
+                // Add it
+                state.assignments.push({
+                    id: 'a_' + Date.now(),
+                    teacherId: state.activeTeacherId,
+                    groupId: groupId,
+                    subjectId: subjectId,
+                    day: day,
+                    periodId: periodId
+                });
+            }
+            saveState();
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const tbody = document.getElementById('scheduleGrid');
+            tbody.innerHTML = '';
+
+            PERIODS.forEach(period => {
+                const tr = document.createElement('tr');
+                
+                if (period.isReceso) {
+                    tr.className = "bg-gray-100";
+                    tr.innerHTML = `<td class="border-b border-r border-gray-200 p-2 text-center text-xs font-semibold text-gray-500">${period.time}</td>
+                                    <td colspan="5" class="border-b border-gray-200 p-2 text-center text-xs font-bold text-gray-400 tracking-[0.2em] uppercase">${period.label}</td>`;
+                    tbody.appendChild(tr);
+                    return;
+                }
+
+                let html = `<td class="border-b border-r border-gray-200 p-2 text-center text-xs font-medium text-gray-600 bg-white">${period.time}</td>`;
+                
+                DAYS.forEach(day => {
+                    // Find ALL assignments for this slot
+                    const cellAssignments = state.assignments.filter(a => a.day === day && a.periodId === period.id);
+                    
+                    let cellContent = '';
+                    let isAssignedToActive = false;
+
+                    cellAssignments.forEach(a => {
+                        const t = state.teachers.find(x => x.id === a.teacherId);
+                        if (!t) return;
+                        
+                        const subj = SUBJECTS.find(s => s.id === a.subjectId) || SUBJECTS[0];
+                        const groupColor = GROUP_COLORS[a.groupId] || 'bg-gray-500';
+                        
+                        const isCurrent = (t.id === state.activeTeacherId);
+                        if (isCurrent) isAssignedToActive = true;
+
+                        cellContent += `
+                            <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white mb-1 w-full ${groupColor} ${isCurrent ? 'ring-2 ring-offset-1 ring-blue-600 shadow-md' : 'opacity-80'}">
+                                <span class="truncate w-full text-center">${a.groupId} (${subj.abbr}) - ${t.name.split(' ')[0]}</span>
+                            </div>
+                        `;
+                    });
+
+                    // Styling cell based on active teacher interaction
+                    let cellClass = "grid-cell border-b border-r border-gray-200 p-1.5 align-top h-16 bg-white cursor-pointer relative";
+                    if (isAssignedToActive) {
+                        cellClass += " bg-blue-50";
+                    }
+
+                    html += `<td class="${cellClass}" onclick="toggleAssignment('${day}', ${period.id})">
+                                <div class="flex flex-col h-full items-center justify-center">${cellContent}</div>
+                             </td>`;
+                });
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function generateRoles() {
+            if (state.assignments.length === 0) {
+                showMessage("Atención", "No hay horas asignadas. Ingresa horarios primero.");
+                return;
+            }
+
+            let groupHoursCount = {};
+            GROUPS.forEach(g => groupHoursCount[g] = 0);
+            
+            let roles = {};
+
+            DAYS.forEach(day => {
+                roles[day] = {};
+                let teacherLastLab = {}; // Rastrea en qué lab estuvo el docente por última vez este día
+
+                PERIODS.forEach(period => {
+                    if (period.isReceso) return;
+                    
+                    roles[day][period.id] = { cc1: null, cc2: null };
+                    
+                    // All requests for this exact slot
+                    let candidates = state.assignments.filter(a => a.day === day && a.periodId === period.id);
+                    if (candidates.length === 0) return;
+
+                    // ALGORITMO DE ORDENAMIENTO (Materia > Equilibrio)
+                    candidates.sort((a, b) => {
+                        const weightA = a.subjectId === 'info' ? 1 : 2;
+                        const weightB = b.subjectId === 'info' ? 1 : 2;
+                        
+                        if (weightA !== weightB) {
+                            return weightA - weightB; 
+                        }
+                        return groupHoursCount[a.groupId] - groupHoursCount[b.groupId];
+                    });
+
+                    let cc1_assigned = null;
+                    let cc2_assigned = null;
+
+                    // Asignación inteligente con preferencia de rotación
+                    for (let i = 0; i < candidates.length; i++) {
+                        let candidate = candidates[i];
+                        let teacher = state.teachers.find(t => t.id === candidate.teacherId);
+                        let basePref = teacher ? teacher.labPreference : 'none';
+                        let lastLab = teacherLastLab[candidate.teacherId]; // 'cc1' o 'cc2'
+
+                        // Determinar el orden de laboratorios a intentar
+                        let tryLabs = [];
+                        if (basePref === 'cc1') {
+                            tryLabs = ['cc1']; // Estricto
+                        } else if (basePref === 'cc2') {
+                            tryLabs = ['cc2']; // Estricto
+                        } else {
+                            // Sin preferencia. Priorizar no rotar, si está lleno intentar el otro.
+                            if (lastLab === 'cc1') tryLabs = ['cc1', 'cc2'];
+                            else if (lastLab === 'cc2') tryLabs = ['cc2', 'cc1'];
+                            else tryLabs = ['cc1', 'cc2'];
+                        }
+
+                        // Intentar asignar
+                        let assigned = false;
+                        for (let lab of tryLabs) {
+                            if (lab === 'cc1' && !cc1_assigned) {
+                                cc1_assigned = candidate;
+                                assigned = true;
+                                teacherLastLab[candidate.teacherId] = 'cc1';
+                                break;
+                            }
+                            if (lab === 'cc2' && !cc2_assigned) {
+                                cc2_assigned = candidate;
+                                assigned = true;
+                                teacherLastLab[candidate.teacherId] = 'cc2';
+                                break;
+                            }
+                        }
+
+                        if (assigned) groupHoursCount[candidate.groupId]++;
+
+                        // Detener si ambos están llenos
+                        if (cc1_assigned && cc2_assigned) break;
+                    }
+
+                    // Guardar asignación final para el horario
+                    roles[day][period.id].cc1 = cc1_assigned;
+                    roles[day][period.id].cc2 = cc2_assigned;
+                });
+            });
+
+            state.roles = roles;
+            saveState();
+            switchTab('result');
+            renderResult();
+            showMessage("¡Éxito!", "Roles generados. Se priorizó Informática, se mantuvo a los docentes en el mismo CC para evitar rotaciones innecesarias, y se nivelaron los grupos.");
+        }
+
+        // Lógica de Reasignación Manual
+        function openReassignModal(day, periodId, ccKey) {
+            currentReassignTarget = { day, periodId, ccKey };
+            const slot = state.roles[day][periodId];
+            const currentAssign = slot[ccKey];
+            
+            const ccName = ccKey === 'cc1' ? 'Centro de Cómputo 1' : 'Centro de Cómputo 2';
+            const timeLabel = PERIODS.find(p => p.id === periodId).time;
+            
+            document.getElementById('reassignSubtitle').innerText = `${day}, ${timeLabel} - ${ccName}`;
+            
+            const select = document.getElementById('reassignSelect');
+            select.innerHTML = '<option value="none">-- Dejar Vacío (Ninguno) --</option>';
+            
+            // Buscar todos los candidatos para esta hora
+            const candidates = state.assignments.filter(a => a.day === day && a.periodId === periodId);
+            
+            candidates.forEach(a => {
+                const t = state.teachers.find(x => x.id === a.teacherId);
+                const subj = SUBJECTS.find(s => s.id === a.subjectId) || SUBJECTS[0];
+                
+                // Saber si actualmente está asignado en algún lado en esta hora
+                let statusInfo = "";
+                if (slot.cc1?.id === a.id) statusInfo = " (Actual en CC1)";
+                else if (slot.cc2?.id === a.id) statusInfo = " (Actual en CC2)";
+                else statusInfo = " (No asignado)";
+
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.innerText = `Grupo ${a.groupId} (${subj.abbr}) - ${t ? t.name : ''}${statusInfo}`;
+                
+                // Si es el actual, seleccionarlo
+                if (currentAssign && currentAssign.id === a.id) {
+                    opt.selected = true;
+                }
+                
+                select.appendChild(opt);
+            });
+            
+            document.getElementById('reassignModal').classList.remove('hidden');
+        }
+
+        function closeReassignModal() {
+            document.getElementById('reassignModal').classList.add('hidden');
+            currentReassignTarget = null;
+        }
+
+        function saveReassignment() {
+            if (!currentReassignTarget) return;
+            const val = document.getElementById('reassignSelect').value;
+            const { day, periodId, ccKey } = currentReassignTarget;
+            const otherCcKey = ccKey === 'cc1' ? 'cc2' : 'cc1';
+            
+            if (val === 'none') {
+                state.roles[day][periodId][ccKey] = null;
+            } else {
+                const newAssign = state.assignments.find(a => a.id === val);
+                
+                // Si la clase elegida ya estaba en el otro CC, hacemos un "swap" (intercambio)
+                if (state.roles[day][periodId][otherCcKey]?.id === val) {
+                    state.roles[day][periodId][otherCcKey] = state.roles[day][periodId][ccKey];
+                }
+                
+                state.roles[day][periodId][ccKey] = newAssign;
+            }
+            
+            closeReassignModal();
+            saveState();
+            renderResult(); // Re-renderizar mostrará los cambios y el nuevo reporte
+        }
+
+
+        function renderResult() {
+            if (!state.roles) return;
+            
+            document.getElementById('exportWordBtn').classList.remove('hidden');
+            document.getElementById('exportMarkdownBtn').classList.remove('hidden');
+            
+            let totalAssigned = 0;
+            const container = document.getElementById('resultContainer');
+            
+            let html = '<div class="flex flex-col gap-8">';
+
+            // Función para renderizar tablas independientes por laboratorio
+            const generateTable = (ccKey, ccTitle) => {
+                let tHtml = `<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-[800px]">
+                                <div class="bg-gray-800 text-white p-3 text-center font-bold text-sm tracking-wider uppercase">${ccTitle}</div>
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th class="bg-gray-100 text-gray-600 border border-gray-300 p-2 text-xs text-center w-24">Hora</th>`;
+                DAYS.forEach(day => {
+                    tHtml += `<th class="bg-gray-100 text-gray-600 border border-gray-300 p-2 text-xs text-center w-[16%]">${day}</th>`;
+                });
+                tHtml += `</tr></thead><tbody>`;
+
+                PERIODS.forEach(period => {
+                    if (period.isReceso) {
+                        tHtml += `<tr><td class="bg-gray-200 border border-gray-300 p-1.5 text-center text-[10px] font-bold">${period.time}</td>
+                                  <td colspan="5" class="bg-gray-100 border border-gray-300 text-center text-xs text-gray-500 font-bold tracking-widest uppercase">RECESO</td></tr>`;
+                        return;
+                    }
+
+                    tHtml += `<tr><td class="bg-gray-50 border border-gray-300 p-1.5 text-center text-[10px] font-semibold text-gray-700">${period.time}</td>`;
+                    
+                    DAYS.forEach(day => {
+                        const slot = state.roles[day][period.id];
+                        
+                        // Validar métricas solo 1 vez
+                        if (ccKey === 'cc1') {
+                            if (slot.cc1) totalAssigned++;
+                            if (slot.cc2) totalAssigned++;
+                        }
+
+                        const assign = slot[ccKey];
+                        
+                        // Celda clickeable para edición
+                        tHtml += `<td class="result-cell border border-gray-300 p-1 text-center align-middle h-14" onclick="openReassignModal('${day}', ${period.id}, '${ccKey}')" title="Clic para reasignar">`;
+                        
+                        if (assign) {
+                            const t = state.teachers.find(x => x.id === assign.teacherId);
+                            const subj = SUBJECTS.find(s => s.id === assign.subjectId) || SUBJECTS[0];
+                            const gColor = GROUP_COLORS[assign.groupId] || 'bg-gray-500';
+                            
+                            tHtml += `<div class="flex flex-col items-center justify-center w-full h-full rounded ${gColor} text-white shadow-sm p-1">
+                                        <div class="text-[13px] font-bold leading-tight">${assign.groupId} <span class="text-[10px] font-normal opacity-90">(${subj.abbr})</span></div>
+                                        <div class="text-[10px] font-medium truncate w-full mt-0.5">${t ? t.name.split(' ')[0] : ''}</div>
+                                      </div>`;
+                        }
+                        
+                        // Icono de edición (aparece en hover)
+                        tHtml += `<div class="edit-icon text-blue-600 rounded">
+                                    <svg class="w-5 h-5 drop-shadow-md bg-white rounded-full p-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                  </div>`;
+                        tHtml += `</td>`;
+                    });
+                    tHtml += `</tr>`;
+                });
+                tHtml += `</tbody></table></div>`;
+                return tHtml;
+            };
+
+            // Crear las dos tablas
+            html += generateTable('cc1', 'Centro de Cómputo 1');
+            html += generateTable('cc2', 'Centro de Cómputo 2');
+            
+            // Construir el reporte de NO asignados
+            let missed = 0;
+            let reportHtml = `<div class="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm">
+                                <h3 class="text-red-800 font-bold mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    Reporte de Clases No Asignadas
+                                </h3>
+                                <ul class="space-y-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4">`;
+            
+            state.assignments.forEach(a => {
+                const slot = state.roles[a.day][a.periodId];
+                if (slot.cc1?.id !== a.id && slot.cc2?.id !== a.id) {
+                    missed++;
+                    const t = state.teachers.find(x => x.id === a.teacherId);
+                    const subj = SUBJECTS.find(s => s.id === a.subjectId) || SUBJECTS[0];
+                    const periodTime = PERIODS.find(p => p.id === a.periodId).time;
+                    reportHtml += `<li class="text-sm text-red-700 flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-red-100 shadow-sm">
+                                    <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span> 
+                                    <span class="truncate"><strong>${a.day} (${periodTime})</strong><br>Gpo ${a.groupId} (${subj.abbr}) - ${t ? t.name.split(' ')[0] : 'Desc.'}</span>
+                                   </li>`;
+                }
+            });
+            reportHtml += `</ul></div>`;
+
+            if (missed > 0) {
+                html += reportHtml;
+            }
+
+            html += '</div>';
+
+            container.innerHTML = html;
+            document.getElementById('resultStats').innerText = `Horas de laboratorio asignadas: ${totalAssigned} | Horas descartadas/sin asignar: ${missed} (Revisa el reporte inferior)`;
+        }
+
+        // Tabs
+        function switchTab(tabId) {
+            document.getElementById('view-input').classList.add('hidden');
+            document.getElementById('view-result').classList.add('hidden');
+            document.getElementById('tab-input').classList.replace('text-blue-600', 'text-gray-500');
+            document.getElementById('tab-input').classList.replace('border-blue-600', 'border-transparent');
+            document.getElementById('tab-result').classList.replace('text-blue-600', 'text-gray-500');
+            document.getElementById('tab-result').classList.replace('border-blue-600', 'border-transparent');
+
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabId}`).classList.replace('text-gray-500', 'text-blue-600');
+            document.getElementById(`tab-${tabId}`).classList.replace('border-transparent', 'border-blue-600');
+        }
+
+        // Export/Import JSON
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "roles_laboratorio.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState.teachers && importedState.assignments) {
+                        state = importedState;
+                        saveState();
+                        init();
+                        showMessage("Éxito", "Datos importados correctamente.");
+                    } else {
+                        showMessage("Error", "El archivo no tiene el formato correcto.");
+                    }
+                } catch (error) {
+                    showMessage("Error", "No se pudo leer el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ""; // Reset file input
+        }
+
+        // Export to Word
+        function getHexColor(twClass) {
+            const map = {
+                'bg-red-500': '#ef4444', 'bg-red-600': '#dc2626',
+                'bg-orange-500': '#f97316', 'bg-orange-600': '#ea580c',
+                'bg-amber-500': '#f59e0b', 'bg-amber-600': '#d97706',
+                'bg-green-500': '#22c55e', 'bg-green-600': '#16a34a',
+                'bg-emerald-500': '#10b981', 'bg-emerald-600': '#059669',
+                'bg-teal-500': '#14b8a6', 'bg-teal-600': '#0d9488',
+                'bg-blue-500': '#3b82f6', 'bg-blue-600': '#2563eb',
+                'bg-indigo-500': '#6366f1', 'bg-indigo-600': '#4f46e5',
+                'bg-purple-500': '#a855f7', 'bg-purple-600': '#9333ea',
+                'bg-pink-500': '#ec4899', 'bg-cyan-500': '#06b6d4'
+            };
+            return map[twClass] || '#9ca3af';
+        }
+
+        function exportWord() {
+            if (!state.roles) {
+                showMessage("Error", "Primero genera los roles.");
+                return;
+            }
+            
+            const preHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>Roles de Laboratorio</title>
+            <style>
+                @page WordSection1 {
+                    size: 792.0pt 612.0pt; /* Carta Horizontal */
+                    mso-page-orientation: landscape;
+                    margin: 1.0in 1.0in 1.0in 1.0in;
+                }
+                div.WordSection1 { page: WordSection1; }
+                table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; margin-bottom: 24px; }
+                th, td { border: 1px solid #000; padding: 4px; text-align: center; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+                .receso { background-color: #e0e0e0; font-weight: bold; letter-spacing: 2px; }
+                h2 { font-family: Arial, sans-serif; text-align: center; margin-bottom: 10px; background-color: #333; color: white; padding: 8px; }
+            </style>
+            </head><body><div class="WordSection1">`;
+            
+            const postHtml = "</div></body></html>";
+            
+            // Función constructora para las tablas de Word
+            const generateWordTable = (ccKey, ccTitle) => {
+                let tableHtml = `<h2>${ccTitle}</h2><table><thead><tr><th>Hora</th>`;
+                DAYS.forEach(d => tableHtml += `<th>${d}</th>`);
+                tableHtml += "</tr></thead><tbody>";
+
+                PERIODS.forEach(period => {
+                    if (period.isReceso) {
+                        tableHtml += `<tr><td>${period.time}</td><td colspan='5' class='receso'>RECESO</td></tr>`;
+                        return;
+                    }
+                    tableHtml += `<tr><td>${period.time}</td>`;
+                    DAYS.forEach(day => {
+                        const slot = state.roles[day][period.id];
+                        const assign = slot[ccKey];
+                        if (assign) {
+                            const t = state.teachers.find(x => x.id === assign.teacherId);
+                            const subj = SUBJECTS.find(s => s.id === assign.subjectId) || SUBJECTS[0];
+                            const gClass = GROUP_COLORS[assign.groupId] || 'bg-gray-500';
+                            const hexColor = getHexColor(gClass);
+                            
+                            tableHtml += `<td style="background-color: ${hexColor}; color: white; border: 1px solid #000;"><strong>${assign.groupId}</strong> <span style="font-size:9px;">(${subj.abbr})</span><br/>${t ? t.name.split(' ')[0] : ''}</td>`;
+                        } else {
+                            tableHtml += `<td></td>`;
+                        }
+                    });
+                    tableHtml += `</tr>`;
+                });
+                tableHtml += "</tbody></table>";
+                return tableHtml;
+            };
+
+            let bodyHtml = generateWordTable('cc1', 'Centro de Cómputo 1');
+            bodyHtml += "<br clear=all style='mso-special-character:line-break;page-break-before:always'>"; // Salto de página para Word
+            bodyHtml += generateWordTable('cc2', 'Centro de Cómputo 2');
+
+            const html = preHtml + bodyHtml + postHtml;
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Roles_Laboratorio.doc';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Export to Markdown
+        function exportMarkdown() {
+            if (!state.roles) {
+                showMessage("Error", "Primero genera los roles.");
+                return;
+            }
+
+            let mdContent = "<style>\n@page { size: landscape; margin: 1cm; }\ntable { width: 100%; border-collapse: collapse; text-align: center; }\nth, td { border: 1px solid #d1d5db; padding: 8px; }\n</style>\n\n";
+
+            const generateMDTable = (ccKey, ccTitle) => {
+                let tableStr = `## ${ccTitle}\n\n`;
+                tableStr += "<table>\n<thead>\n<tr><th>Hora</th>";
+                DAYS.forEach(d => tableStr += `<th>${d}</th>`);
+                tableStr += "</tr>\n</thead>\n<tbody>\n";
+
+                PERIODS.forEach(period => {
+                    if (period.isReceso) {
+                        tableStr += `<tr><td>${period.time}</td><td colspan="5" style="background-color: #f3f4f6; font-weight: bold; letter-spacing: 2px;">RECESO</td></tr>\n`;
+                        return;
+                    }
+
+                    tableStr += `<tr><td>${period.time}</td>`;
+                    
+                    DAYS.forEach(day => {
+                        const slot = state.roles[day][period.id];
+                        const assign = slot[ccKey];
+                        
+                        if (assign) {
+                            const t = state.teachers.find(x => x.id === assign.teacherId);
+                            const subj = SUBJECTS.find(s => s.id === assign.subjectId) || SUBJECTS[0];
+                            const gClass = GROUP_COLORS[assign.groupId] || 'bg-gray-500';
+                            const hexColor = getHexColor(gClass);
+                            const teacherName = t ? t.name.split(' ')[0] : '';
+                            tableStr += `<td style="background-color: ${hexColor}; color: white; font-weight: bold;">${assign.groupId} <span style="font-size: 10px; font-weight: normal;">(${subj.abbr})</span><br>${teacherName}</td>`;
+                        } else {
+                            tableStr += `<td></td>`;
+                        }
+                    });
+                    
+                    tableStr += "</tr>\n";
+                });
+                
+                tableStr += "</tbody>\n</table>\n\n";
+                return tableStr;
+            };
+
+            mdContent += generateMDTable('cc1', 'Centro de Cómputo 1');
+            mdContent += `<div style="page-break-after: always;"></div>\n\n`; // Salto de página para lectores/PDF de Markdown
+            mdContent += generateMDTable('cc2', 'Centro de Cómputo 2');
+
+            const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Roles_Laboratorio.md';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Run
+        init();
+    </script>
+</body>
+</html>

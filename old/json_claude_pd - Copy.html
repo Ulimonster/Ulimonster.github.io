@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador JSON - SKILL Nueva Escuela Mexicana</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding-bottom: 50px; }
+        .card-header { font-weight: bold; background-color: #e9ecef; }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .json-preview { background-color: #212529; color: #00ff00; border-radius: 5px; font-family: monospace; white-space: pre-wrap; font-size: 0.9em; height: 600px; overflow-y: auto; }
+        .ods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+        
+        /* Floating notification alert */
+        #notificationBox {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: none;
+            min-width: 250px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-4">
+    <h2 class="mb-4 text-primary border-bottom pb-2">Generador JSON - SKILL Nueva Escuela Mexicana</h2>
+
+    <div id="notificationBox" class="alert alert-success shadow-sm" role="alert">
+        <span id="notificationMessage">Mensaje</span>
+    </div>
+
+    <div class="row">
+        <!-- Panel Izquierdo: Formulario -->
+        <div class="col-lg-7">
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Datos del Documento</h4>
+                <div>
+                    <label for="importFile" class="btn btn-outline-secondary btn-sm m-0">
+                        Importar JSON
+                    </label>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            <form id="nemForm">
+                
+                <!-- Datos Generales -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header">Datos Generales</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Documento</label>
+                            <select id="documento" class="form-select input-watch">
+                                <option value="Plano Didáctico" selected>Plano Didáctico</option>
+                                <option value="Programa Analítico">Programa Analítico</option>
+                                <option value="Proyecto" disabled>Proyecto</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Campo Formativo (Selección Múltiple)</label>
+                            <div class="checkbox-grid" id="campo_formativo_container">
+                                <div class="form-check"><input class="form-check-input input-watch chk-campo" type="checkbox" value="Lenguajes" id="cf1"><label class="form-check-label" for="cf1">Lenguajes</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-campo" type="checkbox" value="Saberes y Pensamiento Científico" id="cf2"><label class="form-check-label" for="cf2">Saberes y Pensamiento Científico</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-campo" type="checkbox" value="Ética, Naturaleza y Sociedades" id="cf3"><label class="form-check-label" for="cf3">Ética, Naturaleza y Sociedades</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-campo" type="checkbox" value="De lo Humano y lo Comunitario" id="cf4"><label class="form-check-label" for="cf4">De lo Humano y lo Comunitario</label></div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Grado</label>
+                                <select id="grado" class="form-select input-watch">
+									<option value="" disabled selected>Seleccione grado</option>
+                                    <option value="1er grado">1er grado</option>
+                                    <option value="2do grado">2do grado</option>
+                                    <option value="3er grado">3er grado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Disciplina</label>
+                                <select id="disciplina" class="form-select input-watch">
+									<option value="" disabled selected>Seleccione disciplina</option>
+                                    <optgroup label="Lenguajes">
+                                        <option value="Español">Español</option>
+                                        <option value="Inglés">Inglés</option>
+                                        <option value="Artes">Artes</option>
+                                        <option value="Lengua Indígena como Lengua Materna">Lengua Indígena como Lengua Materna</option>
+                                        <option value="Lengua Indígena como Segunda Lengua">Lengua Indígena como Segunda Lengua</option>
+                                    </optgroup>
+                                    <optgroup label="Saberes y Pensamiento Científico">
+                                        <option value="Matemáticas">Matemáticas</option>
+                                        <option value="Biología">Biología</option>
+                                        <option value="Física">Física</option>
+                                        <option value="Química">Química</option>
+                                    </optgroup>
+                                    <optgroup label="Ética, Naturaleza y Sociedades">
+                                        <option value="Geografía">Geografía</option>
+                                        <option value="Historia">Historia</option>
+                                        <option value="Formación Cívica y Ética">Formación Cívica y Ética</option>
+                                    </optgroup>
+                                    <optgroup label="De lo Humano y lo Comunitario">
+                                        <option value="Tecnología">Tecnología</option>
+                                        <option value="Educación Socioemocional / Tutoría">Educación Socioemocional / Tutoría</option>
+                                        <option value="Educación Física">Educación Física</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="div_enfasis">
+                            <label class="form-label">Énfasis Tecnológico <small class="text-muted">(Solo para Tecnología)</small></label>
+                            <select id="enfasis_tecnologia" class="form-select input-watch">
+								<option value="" disabled selected>Seleccione énfasis</option>
+                                <option value="Informática">Informática</option>
+                                <option value="Ofimática">Ofimática</option>
+                                <option value="Circuitos eléctricos">Circuitos eléctricos</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenidos y Metodología -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header">Contenidos y Metodología</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Contenidos Seleccionados <small class="text-muted">(Ej. 1, 3, 5)</small></label>
+                            <input type="text" id="contenidos_seleccionados" class="form-control input-watch" value="" placeholder="Ingresa números separados por coma">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Metodología</label>
+                                <select id="metodologia" class="form-select input-watch">
+									<option value="" disabled selected>Seleccione Metodología</option>
+                                    <option value="Proyectos Comunitarios">Proyectos Comunitarios</option>
+                                    <option value="Indagación STEAM">Indagación STEAM</option>
+                                    <option value="ABP">ABP</option>
+                                    <option value="Aprendizaje Servicio">Aprendizaje Servicio</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Sesiones (50 min)</label>
+                                <input type="number" id="sesiones" class="form-control input-watch" value="6" min="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ejes y ODS -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header">Ejes Articuladores y ODS</div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label class="form-label">Ejes Articuladores</label>
+                            <div class="checkbox-grid">
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Inclusión" id="eje1"><label class="form-check-label" for="eje1">Inclusión</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Pensamiento Crítico" id="eje2"><label class="form-check-label" for="eje2">Pensamiento Crítico</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Interculturalidad Crítica" id="eje3"><label class="form-check-label" for="eje3">Interculturalidad Crítica</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Igualdad de Género" id="eje4"><label class="form-check-label" for="eje4">Igualdad de Género</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Vida Saludable" id="eje5"><label class="form-check-label" for="eje5">Vida Saludable</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Apropiación de las Culturas a través de la Lectura y la Escritura" id="eje6"><label class="form-check-label" for="eje6">Apropiación (Lectura/Escritura)</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-ejes" type="checkbox" value="Artes y Experiencias Estéticas" id="eje7"><label class="form-check-label" for="eje7">Artes y Experiencias Estéticas</label></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Objetivos de Desarrollo Sostenible (ODS)</label>
+                            <div class="ods-grid" id="ods_container">
+                                <!-- ODS checkoxes injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Codiseño, BAP y Evaluación -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header">Codiseño, BAP y Evaluación</div>
+                    <div class="card-body">
+                        
+                        <div class="mb-3 border-bottom pb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input input-watch" type="checkbox" id="codiseno_tiene">
+                                <label class="form-check-label fw-bold" for="codiseno_tiene">Incluir Codiseño</label>
+                            </div>
+                            <div id="div_codiseno_desc">
+                                <label class="form-label">Descripción del Codiseño</label>
+                                <textarea id="codiseno_descripcion" class="form-control input-watch" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 border-bottom pb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input input-watch" type="checkbox" id="bap_tiene">
+                                <label class="form-check-label fw-bold" for="bap_tiene">Presenta BAP (Barreras de Aprendizaje)</label>
+                            </div>
+                            <div id="div_bap_details" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label">Tipo de BAP</label>
+                                        <select id="bap_tipo" class="form-select input-watch">
+											<option value="" disabled selected>Seleccione </option>
+                                            <option value="Actitudinal">Actitudinal</option>
+                                            <option value="Pedagógica">Pedagógica</option>
+                                            <option value="Organizativa">Organizativa</option>
+                                            <option value="Contextual">Contextual</option>
+                                            <option value="Física">Física</option>
+                                            <option value="Comunicativa">Comunicativa</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label">Alumno(s)</label>
+                                        <input type="text" id="bap_alumno" class="form-control input-watch">
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Descripción</label>
+                                    <textarea id="bap_descripcion" class="form-control input-watch" rows="3"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">Apoyo Institucional</label>
+                                    <input type="text" id="bap_apoyo" class="form-control input-watch">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Instrumentos de Evaluación</label>
+                            <div class="checkbox-grid">
+                                <div class="form-check"><input class="form-check-input input-watch chk-eval" type="checkbox" value="Autoevaluación" id="ev1" checked><label class="form-check-label" for="ev1">Autoevaluación</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-eval" type="checkbox" value="Coevaluación" id="ev2" checked><label class="form-check-label" for="ev2">Coevaluación</label></div>
+                                <div class="form-check"><input class="form-check-input input-watch chk-eval" type="checkbox" value="Heteroevaluación" id="ev3" checked><label class="form-check-label" for="ev3">Heteroevaluación</label></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Escuela y Proyecto -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header">Escuela y Proyecto</div>
+                    <div class="card-body">
+                        <h6 class="border-bottom pb-1">Datos de Escuela</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-8 mb-2"><label class="form-label">Nombre</label><input type="text" id="esc_nombre" class="form-control input-watch" value="Escuela Secundaria Roosevelt Ercé Barrón Pech"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">CCT</label><input type="text" id="esc_cct" class="form-control input-watch" value="31DES2016Y"></div>
+                            <div class="col-md-5 mb-2"><label class="form-label">Municipio</label><input type="text" id="esc_municipio" class="form-control input-watch" value="Umán"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Estado</label><input type="text" id="esc_estado" class="form-control input-watch" value="Yucatán"></div>
+                            <div class="col-md-3 mb-2"><label class="form-label">Alumnos</label><input type="number" id="esc_alumnos" class="form-control input-watch" value="36"></div>
+                            <div class="col-12"><label class="form-label">Contexto Comunitario</label><textarea id="esc_contexto" class="form-control input-watch" rows="3"></textarea></div>
+                        </div>
+
+                        <h6 class="border-bottom pb-1">Proyecto Central</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Idea Central</label>
+                            <textarea id="proy_idea" class="form-control input-watch" rows="3"> </textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Producto Esperado</label>
+                            <input type="text" id="proy_producto" class="form-control input-watch" value="">
+                        </div>
+
+                        <div>
+                            <label class="form-label">Información Adicional (Opcional)</label>
+                            <textarea id="info_adicional" class="form-control input-watch" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Panel Derecho: JSON Output -->
+        <div class="col-lg-5">
+            <div class="sticky-top" style="top: 20px;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>Vista Previa JSON</h4>
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="copyJSON()">Copiar</button>
+                        <button class="btn btn-primary btn-sm" onclick="downloadJSON()">Descargar</button>
+                    </div>
+                </div>
+                <pre class="json-preview border p-3 shadow-sm" id="jsonOutput"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Referencia de ODS
+    const odsData = {
+        1: "Fin de la pobreza", 2: "Hambre cero", 3: "Salud y bienestar", 4: "Educación de calidad", 5: "Igualdad de género",
+        6: "Agua limpia", 7: "Energía asequible", 8: "Trabajo decente", 9: "Industria e innovación", 10: "Reducción de desigualdades",
+        11: "Ciudades sostenibles", 12: "Producción responsable", 13: "Acción por el clima", 14: "Vida submarina",
+        15: "Ecosistemas terrestres", 16: "Paz y justicia", 17: "Alianzas"
+    };
+
+    // Estructura Base y Metadatos Requeridos
+    const metaInstructions = {
+        "uso": "Proporciona este JSON completo a la skill para generar el documento sin pasar por el flujo interactivo.",
+        "como_usar": "Copia esta plantilla, rellena todos los campos y envíala al chat. La skill la procesará directamente.",
+        "campos_requeridos": ["nem_input.documento", "nem_input.campo_formativo", "nem_input.grado", "nem_input.disciplina", "nem_input.contenidos_seleccionados", "nem_input.metodologia", "nem_input.sesiones", "nem_input.escuela"],
+        "campos_opcionales": ["nem_input.enfasis_tecnologia", "nem_input.ejes_articuladores", "nem_input.ods", "nem_input.codiseno", "nem_input.bap", "nem_input.instrumentos_evaluacion", "nem_input.info_adicional"]
+    };
+
+    const inputMetadatas = {
+        "_documento_opciones": ["Plano Didáctico", "Programa Analítico", "Proyecto"],
+        "_campo_formativo_nota": "Array — puede incluir más de uno para proyectos interdisciplinarios.",
+        "_campo_formativo_opciones": ["Lenguajes", "Saberes y Pensamiento Científico", "Ética, Naturaleza y Sociedades", "De lo Humano y lo Comunitario"],
+        "_grado_opciones": ["1er grado", "2do grado", "3er grado"],
+        "_disciplina_opciones_por_campo": {
+            "Lenguajes": ["Español", "Inglés", "Artes", "Lengua Indígena como Lengua Materna", "Lengua Indígena como Segunda Lengua"],
+            "Saberes y Pensamiento Científico": ["Matemáticas", "Biología", "Física", "Química"],
+            "Ética, Naturaleza y Sociedades": ["Geografía", "Historia", "Formación Cívica y Ética"],
+            "De lo Humano y lo Comunitario": ["Tecnología", "Educación Socioemocional / Tutoría", "Educación Física"]
+        },
+        "_enfasis_tecnologia_nota": "Solo requerido si disciplina es Tecnología. Dejar vacío si no aplica.",
+        "_enfasis_opciones": ["Informática", "Ofimática", "Circuitos eléctricos", "Robótica", "Tecnología y sociedad", "Otro"],
+        "_contenidos_nota": "Array de números. Posición 1 = primer contenido del archivo JSON para el grado elegido. La skill leerá el JSON y seleccionará solo esas posiciones.",
+        "_metodologia_opciones": ["Proyectos Comunitarios", "Indagación STEAM", "ABP", "Aprendizaje Servicio"],
+        "_sesiones_nota": "Número entero. Cada sesión = 50 minutos.",
+        "_ejes_opciones": ["Inclusión", "Pensamiento Crítico", "Interculturalidad Crítica", "Igualdad de Género", "Vida Saludable", "Apropiación de las Culturas a través de la Lectura y la Escritura", "Artes y Experiencias Estéticas"],
+        "_ods_nota": "Array de números del 1 al 17.",
+        "_ods_referencia": odsData,
+        "_codiseno_nota": "Si no hay codiseño: { 'tiene': false, 'descripcion': '' }",
+        "_bap_nota": "Si hay BAP: tiene=true y llenar los demás campos. tipo puede ser: Actitudinal, Pedagógica, Organizativa, Contextual, Física, Comunicativa.",
+        "_instrumentos_opciones": ["Autoevaluación", "Coevaluación", "Heteroevaluación"]
+    };
+
+    // Inicializar la Interfaz
+    function initUI() {
+        // Generar Checkboxes ODS
+        const odsContainer = document.getElementById('ods_container');
+        for (let i = 1; i <= 17; i++) {
+            let checked = ( i === 4) ? 'checked' : '';
+            odsContainer.innerHTML += `
+                <div class="form-check">
+                    <input class="form-check-input input-watch chk-ods" type="checkbox" value="${i}" id="ods${i}" ${checked}>
+                    <label class="form-check-label" for="ods${i}">
+                        <span class="badge bg-secondary me-1">${i}</span>${odsData[i]}
+                    </label>
+                </div>
+            `;
+        }
+
+        // Event Listeners Dinámicos
+        document.getElementById('disciplina').addEventListener('change', toggleEnfasis);
+        document.getElementById('codiseno_tiene').addEventListener('change', toggleCodiseno);
+        document.getElementById('bap_tiene').addEventListener('change', toggleBap);
+        document.getElementById('importFile').addEventListener('change', handleImport);
+
+        // Actualizar JSON al cambiar cualquier input
+        document.querySelectorAll('.input-watch').forEach(el => {
+            el.addEventListener('input', generateJSON);
+            el.addEventListener('change', generateJSON);
+        });
+
+        // Configuración inicial de visibilidad
+        toggleEnfasis();
+        toggleCodiseno();
+        toggleBap();
+        
+        // Generar la primera vez
+        generateJSON();
+    }
+
+    // Funciones de Visibilidad Condicional
+    function toggleEnfasis() {
+        const disc = document.getElementById('disciplina').value;
+        const divEnfasis = document.getElementById('div_enfasis');
+        const selectEnfasis = document.getElementById('enfasis_tecnologia');
+        if (disc === 'Tecnología') {
+            divEnfasis.style.display = 'block';
+            selectEnfasis.disabled = false;
+        } else {
+            divEnfasis.style.display = 'none';
+            selectEnfasis.disabled = true;
+            selectEnfasis.value = "";
+        }
+    }
+
+    function toggleCodiseno() {
+        const tiene = document.getElementById('codiseno_tiene').checked;
+        document.getElementById('div_codiseno_desc').style.display = tiene ? 'block' : 'none';
+    }
+
+    function toggleBap() {
+        const tiene = document.getElementById('bap_tiene').checked;
+        document.getElementById('div_bap_details').style.display = tiene ? 'block' : 'none';
+    }
+
+    // Helper: Obtener valores de checkboxes
+    function getCheckedValues(selector, isNumeric = false) {
+        const nodes = document.querySelectorAll(selector + ':checked');
+        return Array.from(nodes).map(n => isNumeric ? parseInt(n.value) : n.value);
+    }
+
+    // Helper: Notificaciones visuales (reemplaza alert)
+    function showNotification(message, type = 'success') {
+        const box = document.getElementById('notificationBox');
+        const msgSpan = document.getElementById('notificationMessage');
+        box.className = `alert alert-${type} shadow-sm`;
+        msgSpan.innerText = message;
+        box.style.display = 'block';
+        setTimeout(() => box.style.display = 'none', 3000);
+    }
+
+    // Generador principal de JSON
+    function generateJSON() {
+        // Parsear contenidos (ej. "1, 3, 5" -> [1,3,5])
+        const strContenidos = document.getElementById('contenidos_seleccionados').value;
+        const arrContenidos = strContenidos.split(',')
+            .map(n => parseInt(n.trim()))
+            .filter(n => !isNaN(n));
+
+        // Construir el objeto principal
+        const finalObj = {
+            "_instrucciones": metaInstructions,
+            "nem_input": {
+                "documento": document.getElementById('documento').value,
+                "_documento_opciones": inputMetadatas._documento_opciones,
+                
+                "campo_formativo": getCheckedValues('.chk-campo'),
+                "_campo_formativo_nota": inputMetadatas._campo_formativo_nota,
+                "_campo_formativo_opciones": inputMetadatas._campo_formativo_opciones,
+                
+                "grado": document.getElementById('grado').value,
+                "_grado_opciones": inputMetadatas._grado_opciones,
+                
+                "disciplina": document.getElementById('disciplina').value,
+                "_disciplina_opciones_por_campo": inputMetadatas._disciplina_opciones_por_campo,
+                
+                "enfasis_tecnologia": !document.getElementById('enfasis_tecnologia').disabled ? document.getElementById('enfasis_tecnologia').value : "",
+                "_enfasis_tecnologia_nota": inputMetadatas._enfasis_tecnologia_nota,
+                "_enfasis_opciones": inputMetadatas._enfasis_opciones,
+                
+                "contenidos_seleccionados": arrContenidos,
+                "_contenidos_nota": inputMetadatas._contenidos_nota,
+                
+                "metodologia": document.getElementById('metodologia').value,
+                "_metodologia_opciones": inputMetadatas._metodologia_opciones,
+                
+                "sesiones": parseInt(document.getElementById('sesiones').value) || 0,
+                "_sesiones_nota": inputMetadatas._sesiones_nota,
+                
+                "ejes_articuladores": getCheckedValues('.chk-ejes'),
+                "_ejes_opciones": inputMetadatas._ejes_opciones,
+                
+                "ods": getCheckedValues('.chk-ods', true),
+                "_ods_nota": inputMetadatas._ods_nota,
+                "_ods_referencia": inputMetadatas._ods_referencia,
+                
+                "codiseno": {
+                    "tiene": document.getElementById('codiseno_tiene').checked,
+                    "descripcion": document.getElementById('codiseno_tiene').checked ? document.getElementById('codiseno_descripcion').value : ""
+                },
+                "_codiseno_nota": inputMetadatas._codiseno_nota,
+                
+                "bap": {
+                    "tiene": document.getElementById('bap_tiene').checked,
+                    "descripcion": document.getElementById('bap_tiene').checked ? document.getElementById('bap_descripcion').value : "",
+                    "tipo": document.getElementById('bap_tiene').checked ? document.getElementById('bap_tipo').value : "",
+                    "alumno": document.getElementById('bap_tiene').checked ? document.getElementById('bap_alumno').value : "",
+                    "apoyo_institucional": document.getElementById('bap_tiene').checked ? document.getElementById('bap_apoyo').value : ""
+                },
+                "_bap_nota": inputMetadatas._bap_nota,
+                
+                "instrumentos_evaluacion": getCheckedValues('.chk-eval'),
+                "_instrumentos_opciones": inputMetadatas._instrumentos_opciones,
+                
+                "escuela": {
+                    "nombre": document.getElementById('esc_nombre').value,
+                    "cct": document.getElementById('esc_cct').value,
+                    "municipio": document.getElementById('esc_municipio').value,
+                    "estado": document.getElementById('esc_estado').value,
+                    "alumnos_grupo": parseInt(document.getElementById('esc_alumnos').value) || 0,
+                    "contexto_comunitario": document.getElementById('esc_contexto').value
+                },
+                
+                "proyecto": {
+                    "idea_central": document.getElementById('proy_idea').value,
+                    "producto_esperado": document.getElementById('proy_producto').value
+                },
+                
+                "info_adicional": document.getElementById('info_adicional').value
+            }
+        };
+
+        // Mostrar en la pantalla
+        document.getElementById('jsonOutput').textContent = JSON.stringify(finalObj, null, 2);
+    }
+
+    // Funciones de Exportación
+    function copyJSON() {
+        const text = document.getElementById('jsonOutput').textContent;
+        // Método seguro para iframes / general
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showNotification("JSON copiado al portapapeles correctamente.");
+        } catch (err) {
+            showNotification("Error al copiar el texto.", "danger");
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function downloadJSON() {
+        const text = document.getElementById('jsonOutput').textContent;
+        const blob = new Blob([text], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "NEM_Documento_" + Date.now() + ".json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification("Descarga iniciada.");
+    }
+
+    // Funciones de Importación
+    function handleImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.nem_input) {
+                    populateForm(data.nem_input);
+                    showNotification("Datos importados con éxito.");
+                } else {
+                    showNotification("El archivo JSON no tiene la estructura correcta (falta nem_input).", "warning");
+                }
+            } catch (err) {
+                showNotification("Error al leer el archivo JSON: formato inválido.", "danger");
+            }
+        };
+        reader.readAsText(file);
+        // Reset input to allow loading the same file again
+        event.target.value = '';
+    }
+
+    function populateForm(data) {
+        // Text / Selects
+        const safeSetVal = (id, val) => { if(document.getElementById(id) && val !== undefined) document.getElementById(id).value = val; };
+        
+        safeSetVal('documento', data.documento);
+        safeSetVal('grado', data.grado);
+        safeSetVal('disciplina', data.disciplina);
+        
+        // Re-evaluar énfasis
+        toggleEnfasis();
+        if(data.enfasis_tecnologia) safeSetVal('enfasis_tecnologia', data.enfasis_tecnologia);
+
+        if(data.contenidos_seleccionados && Array.isArray(data.contenidos_seleccionados)) {
+            safeSetVal('contenidos_seleccionados', data.contenidos_seleccionados.join(', '));
+        }
+
+        safeSetVal('metodologia', data.metodologia);
+        safeSetVal('sesiones', data.sesiones);
+
+        // Checkboxes helpers
+        const setCheckboxes = (selector, valuesArray) => {
+            if(!valuesArray || !Array.isArray(valuesArray)) return;
+            document.querySelectorAll(selector).forEach(chk => {
+                chk.checked = valuesArray.some(val => val.toString() === chk.value.toString());
+            });
+        };
+
+        setCheckboxes('.chk-campo', data.campo_formativo);
+        setCheckboxes('.chk-ejes', data.ejes_articuladores);
+        setCheckboxes('.chk-ods', data.ods);
+        setCheckboxes('.chk-eval', data.instrumentos_evaluacion);
+
+        // Objetos anidados
+        if (data.codiseno) {
+            document.getElementById('codiseno_tiene').checked = data.codiseno.tiene || false;
+            safeSetVal('codiseno_descripcion', data.codiseno.descripcion);
+            toggleCodiseno();
+        }
+
+        if (data.bap) {
+            document.getElementById('bap_tiene').checked = data.bap.tiene || false;
+            safeSetVal('bap_tipo', data.bap.tipo);
+            safeSetVal('bap_alumno', data.bap.alumno);
+            safeSetVal('bap_descripcion', data.bap.descripcion);
+            safeSetVal('bap_apoyo', data.bap.apoyo_institucional);
+            toggleBap();
+        }
+
+        if (data.escuela) {
+            safeSetVal('esc_nombre', data.escuela.nombre);
+            safeSetVal('esc_cct', data.escuela.cct);
+            safeSetVal('esc_municipio', data.escuela.municipio);
+            safeSetVal('esc_estado', data.escuela.estado);
+            safeSetVal('esc_alumnos', data.escuela.alumnos_grupo);
+            safeSetVal('esc_contexto', data.escuela.contexto_comunitario);
+        }
+
+        if (data.proyecto) {
+            safeSetVal('proy_idea', data.proyecto.idea_central);
+            safeSetVal('proy_producto', data.proyecto.producto_esperado);
+        }
+
+        safeSetVal('info_adicional', data.info_adicional);
+
+        // Regenerate JSON preview after populating
+        generateJSON();
+    }
+
+    // Iniciar
+    window.onload = initUI;
+
+</script>
+</body>
+</html>

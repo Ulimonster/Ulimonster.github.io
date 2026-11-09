@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Arte Generativo Profesional</title>
+    <!-- Tailwind CSS para los estilos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Cropper.js para recorte y zoom de imágenes -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <!-- Tone.js para la sonificación -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- D3-Delaunay para la triangulación Low Poly -->
+    <script src="https://d3js.org/d3-delaunay.v6.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        #canvas-container {
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #d1d5db;
+            border-radius: 2px;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #spiro-canvas, #spiro-canvas * {
+                visibility: visible;
+            }
+            #spiro-canvas {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                max-width: 100%;
+                max-height: 100vh;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <div class="max-w-5xl w-full bg-white rounded-xl shadow-lg p-6 md:p-8 flex flex-col md:flex-row gap-8">
+        
+        <!-- Panel de Control -->
+        <div class="w-full md:w-1/3 flex flex-col gap-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-1">Generador de Arte</h1>
+                <p class="text-xs text-gray-500">Convierte tus fotos en obras de arte estilizadas.</p>
+            </div>
+
+            <!-- Carga de Imagen -->
+            <div>
+                <label for="imageLoader" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded w-full text-center block transition-colors shadow-sm">
+                    Cargar Fotografía
+                </label>
+                <input type="file" id="imageLoader" accept="image/*" />
+            </div>
+
+            <!-- Selección de Estilo -->
+            <div class="space-y-4">
+                <div>
+                    <label for="artMode" class="block text-sm font-medium text-gray-700 mb-1">
+                        Estilo de Arte:
+                    </label>
+                    <select id="artMode" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                        <option value="spiro">Spiroglyphic (Espiral)</option>
+                        <option value="string">Arte con Hilos (String Art)</option>
+                        <option value="dotwork">Puntillismo (Dotwork)</option>
+                        <option value="waves">Ondas Acústicas (Waves)</option>
+                        <option value="halftone">Medio Tono (Halftone)</option>
+                        <option value="ascii">Arte ASCII (Texto)</option>
+                        <option value="lowpoly">Bajo Poligonal (Low Poly)</option>
+                        <option value="contour">Líneas Topográficas</option>
+                    </select>
+                </div>
+
+                <!-- Controles Dinámicos según Estilo -->
+                <div id="dynamic-controls" class="space-y-4">
+                    <!-- Se actualizarán mediante JavaScript -->
+                </div>
+
+                <!-- Opciones Avanzadas y Color Original -->
+                <div class="border-t border-gray-200 pt-4 mt-2 space-y-3">
+                    <div>
+                        <label for="contrast" class="block text-sm font-medium text-gray-700 mb-1">
+                            Contraste: <span id="contrastVal" class="font-bold">1</span>
+                        </label>
+                        <input type="range" id="contrast" min="0.1" max="3" value="1" step="0.1" class="w-full">
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="keepColor" class="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500">
+                            <label for="keepColor" class="text-sm font-bold text-emerald-800">Mantener Color Original 🎨</label>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="invert" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="invert" class="text-sm font-medium text-gray-700">Invertir Colores</label>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="rainbowMode" class="w-4 h-4 text-pink-600 bg-gray-100 border-gray-300 rounded focus:ring-pink-500">
+                            <label for="rainbowMode" class="text-sm font-medium text-gray-700">Modo Arcoíris (Fondo negro)</label>
+                        </div>
+
+                        <div class="flex items-center gap-2 p-2 bg-indigo-50 border border-indigo-100 rounded-md">
+                            <input type="checkbox" id="sonorizarMode" class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500">
+                            <label for="sonorizarMode" class="text-sm font-bold text-indigo-800">Sonorizar Trazado 🎵</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex flex-col gap-3 mt-2">
+                <button id="generateBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded w-full transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    Generar Obra
+                </button>
+                
+                <button id="editCropBtn" style="display: none;" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded w-full transition-colors shadow-sm">
+                    Volver a Recortar Foto
+                </button>
+
+                <div class="flex gap-2">
+                    <button id="exportBtn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded flex-1 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Descargar
+                    </button>
+                    <button id="printBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded flex-1 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Imprimir
+                    </button>
+                </div>
+            </div>
+            
+            <div id="statusMessage" class="text-sm text-center text-gray-500 italic">Esperando imagen...</div>
+        </div>
+
+        <!-- Área de Visualización -->
+        <div class="w-full md:w-2/3 flex flex-col items-center justify-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 p-4 min-h-[400px]">
+            <div id="cropper-container" style="display: none;" class="w-full flex-col items-center">
+                <div class="w-full max-w-[600px] h-[400px] md:h-[500px] bg-gray-200 rounded overflow-hidden shadow-inner flex items-center justify-center">
+                    <img id="image-to-crop" src="" alt="Recortar" class="max-w-full max-h-full block">
+                </div>
+                <p class="text-sm text-gray-500 mt-3 font-medium">Ajusta el zoom y la posición, luego presiona "Generar".</p>
+            </div>
+
+            <div id="canvas-container">
+                <canvas id="spiro-canvas" width="1000" height="1000"></canvas>
+            </div>
+            <canvas id="hidden-canvas" style="display:none;"></canvas>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageLoader = document.getElementById('imageLoader');
+            const spiroCanvas = document.getElementById('spiro-canvas');
+            const ctx = spiroCanvas.getContext('2d', { willReadFrequently: true });
+            const hiddenCanvas = document.getElementById('hidden-canvas');
+            const hiddenCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+            
+            const artModeInput = document.getElementById('artMode');
+            const dynamicControls = document.getElementById('dynamic-controls');
+            
+            const contrastInput = document.getElementById('contrast');
+            const contrastVal = document.getElementById('contrastVal');
+            const invertInput = document.getElementById('invert');
+            const rainbowModeInput = document.getElementById('rainbowMode');
+            const keepColorInput = document.getElementById('keepColor');
+            const sonorizarModeInput = document.getElementById('sonorizarMode');
+            
+            const generateBtn = document.getElementById('generateBtn');
+            const editCropBtn = document.getElementById('editCropBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const printBtn = document.getElementById('printBtn');
+            const statusMessage = document.getElementById('statusMessage');
+
+            const canvasContainer = document.getElementById('canvas-container');
+            const cropperContainer = document.getElementById('cropper-container');
+            const imageToCrop = document.getElementById('image-to-crop');
+
+            let originalImageLoaded = false;
+            let cropper = null;
+            const canvasSize = 1000;
+
+            // Audio setup
+            let audioReady = false;
+            let synth, polySynth, mainReverb;
+            const extendedScale = ["C2", "D2", "E2", "G2", "A2", "C3", "D3", "E3", "G3", "A3", "C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5", "C6", "D6", "E6", "G6", "A6"];
+
+            async function initAudio() {
+                if (!audioReady) {
+                    await Tone.start();
+                    mainReverb = new Tone.Reverb({ decay: 4, wet: 0.5 }).toDestination();
+                    synth = new Tone.Synth({
+                        oscillator: { type: "amtriangle" },
+                        envelope: { attack: 0.005, decay: 0.3, sustain: 0.2, release: 0.5 }
+                    }).connect(mainReverb);
+
+                    polySynth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "amtriangle" },
+                        envelope: { attack: 0.005, decay: 0.5, sustain: 0.1, release: 0.5 }
+                    }).connect(mainReverb);
+                    audioReady = true;
+                }
+            }
+
+            // Renderizar controles dinámicos según el estilo seleccionado
+            function updateControlsUI() {
+                const mode = artModeInput.value;
+                let html = '';
+
+                if (mode === 'spiro') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Densidad (Vueltas): <span id="param1Val" class="font-bold">80</span></label>
+                            <input type="range" id="param1" min="20" max="200" value="80" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grosor Máximo: <span id="param2Val" class="font-bold">15</span>px</label>
+                            <input type="range" id="param2" min="1" max="30" value="15" step="0.5" class="w-full">
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="paramCheck" class="w-4 h-4 text-purple-600 rounded">
+                            <label for="paramCheck" class="text-sm font-medium text-gray-700">Modo Patrón (Solo líneas)</label>
+                        </div>
+                    `;
+                } else if (mode === 'string') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad de Pines:</label>
+                            <select id="param1" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5">
+                                <option value="90">90 Pines</option>
+                                <option value="180">180 Pines</option>
+                                <option value="360" selected>360 Pines</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grosor del Hilo: <span id="param2Val" class="font-bold">15</span></label>
+                            <input type="range" id="param2" min="5" max="40" value="15" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Límite de Hilos: <span id="param3Val" class="font-bold">3000</span></label>
+                            <input type="range" id="param3" min="500" max="6000" value="3000" step="100" class="w-full">
+                        </div>
+                    `;
+                } else if (mode === 'dotwork') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Densidad de Puntos: <span id="param1Val" class="font-bold">60</span></label>
+                            <input type="range" id="param1" min="30" max="120" value="60" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tamaño Máximo de Punto: <span id="param2Val" class="font-bold">8</span>px</label>
+                            <input type="range" id="param2" min="2" max="15" value="8" class="w-full">
+                        </div>
+                    `;
+                } else if (mode === 'waves') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Número de Filas: <span id="param1Val" class="font-bold">80</span></label>
+                            <input type="range" id="param1" min="30" max="150" value="80" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amplitud de Onda: <span id="param2Val" class="font-bold">10</span>px</label>
+                            <input type="range" id="param2" min="2" max="25" value="10" class="w-full">
+                        </div>
+                    `;
+                } else if (mode === 'halftone') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Resolución de Celdas: <span id="param1Val" class="font-bold">50</span></label>
+                            <input type="range" id="param1" min="20" max="100" value="50" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Radio Máximo de Círculo: <span id="param2Val" class="font-bold">10</span>px</label>
+                            <input type="range" id="param2" min="4" max="20" value="10" class="w-full">
+                        </div>
+                    `;
+                } else if (mode === 'ascii') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Columnas de Texto: <span id="param1Val" class="font-bold">90</span></label>
+                            <input type="range" id="param1" min="40" max="160" value="90" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tamaño de Fuente: <span id="param2Val" class="font-bold">12</span>px</label>
+                            <input type="range" id="param2" min="8" max="24" value="12" class="w-full">
+                        </div>
+                    `;
+                } else if (mode === 'lowpoly') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Número de Vértices: <span id="param1Val" class="font-bold">400</span></label>
+                            <input type="range" id="param1" min="100" max="1500" value="400" step="50" class="w-full">
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="paramCheck" checked class="w-4 h-4 text-blue-600 rounded">
+                            <label for="paramCheck" class="text-sm font-medium text-gray-700">Dibujar Bordes de Triángulos</label>
+                        </div>
+                    `;
+                } else if (mode === 'contour') {
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Niveles de Curvas: <span id="param1Val" class="font-bold">15</span></label>
+                            <input type="range" id="param1" min="5" max="35" value="15" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grosor de Línea: <span id="param2Val" class="font-bold">2</span>px</label>
+                            <input type="range" id="param2" min="1" max="5" value="2" step="0.5" class="w-full">
+                        </div>
+                    `;
+                }
+
+                dynamicControls.innerHTML = html;
+
+                const p1 = document.getElementById('param1');
+                const p1Val = document.getElementById('param1Val');
+                if (p1 && p1Val) p1.addEventListener('input', (e) => p1Val.textContent = e.target.value);
+
+                const p2 = document.getElementById('param2');
+                const p2Val = document.getElementById('param2Val');
+                if (p2 && p2Val) p2.addEventListener('input', (e) => p2Val.textContent = e.target.value);
+
+                const p3 = document.getElementById('param3');
+                const p3Val = document.getElementById('param3Val');
+                if (p3 && p3Val) p3.addEventListener('input', (e) => p3Val.textContent = e.target.value);
+            }
+
+            artModeInput.addEventListener('change', updateControlsUI);
+            updateControlsUI();
+
+            contrastInput.addEventListener('input', (e) => contrastVal.textContent = e.target.value);
+            imageLoader.addEventListener('change', handleImage);
+
+            editCropBtn.addEventListener('click', () => {
+                canvasContainer.style.display = 'none';
+                cropperContainer.style.display = 'flex';
+                editCropBtn.style.display = 'none';
+                exportBtn.disabled = true;
+                printBtn.disabled = true;
+                statusMessage.textContent = "Ajusta el área y haz clic en 'Generar Obra'.";
+            });
+
+            function handleImage(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const imgURL = URL.createObjectURL(file);
+                imageToCrop.src = imgURL;
+                
+                canvasContainer.style.display = 'none';
+                cropperContainer.style.display = 'flex';
+                editCropBtn.style.display = 'none';
+                exportBtn.disabled = true;
+                printBtn.disabled = true;
+                
+                if (cropper) {
+                    cropper.replace(imgURL);
+                } else {
+                    cropper = new Cropper(imageToCrop, {
+                        aspectRatio: 1,
+                        viewMode: 1,
+                        autoCropArea: 0.9,
+                        background: false
+                    });
+                }
+                
+                originalImageLoaded = true;
+                statusMessage.textContent = "Ajusta el área y haz clic en 'Generar Obra'.";
+                generateBtn.disabled = false;
+            }
+
+            // Inicializar vista inicial de canvas
+            ctx.fillStyle = '#f9fafb';
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '30px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Sube una imagen para comenzar', canvasSize/2, canvasSize/2);
+
+            generateBtn.addEventListener('click', async () => {
+                if (!originalImageLoaded || !cropper) return;
+                
+                if (sonorizarModeInput.checked) {
+                    await initAudio();
+                    if (Tone.context.state !== 'running') await Tone.context.resume();
+                }
+
+                statusMessage.textContent = "Generando obra...";
+                generateBtn.disabled = true;
+                exportBtn.disabled = true;
+                printBtn.disabled = true;
+                
+                setTimeout(() => {
+                    executeArtGeneration();
+                }, 50);
+            });
+
+            function executeArtGeneration() {
+                hiddenCanvas.width = canvasSize;
+                hiddenCanvas.height = canvasSize;
+                
+                const croppedCanvas = cropper.getCroppedCanvas({
+                    width: canvasSize, height: canvasSize,
+                    imageSmoothingEnabled: true, imageSmoothingQuality: 'high'
+                });
+                
+                hiddenCtx.fillStyle = 'white';
+                hiddenCtx.fillRect(0, 0, canvasSize, canvasSize);
+                hiddenCtx.drawImage(croppedCanvas, 0, 0, canvasSize, canvasSize);
+                
+                cropperContainer.style.display = 'none';
+                canvasContainer.style.display = 'flex';
+                editCropBtn.style.display = 'block';
+
+                const mode = artModeInput.value;
+                const contrast = parseFloat(contrastInput.value);
+                const invert = invertInput.checked;
+                const rainbow = rainbowModeInput.checked;
+                const keepColor = keepColorInput.checked;
+                const sonorize = sonorizarModeInput.checked;
+
+                const rawData = hiddenCtx.getImageData(0, 0, canvasSize, canvasSize).data;
+                
+                const pixels = new Float32Array(canvasSize * canvasSize);
+                const colors = new Uint8ClampedArray(canvasSize * canvasSize * 3);
+
+                for (let i = 0; i < canvasSize * canvasSize; i++) {
+                    const r = rawData[i*4];
+                    const g = rawData[i*4+1];
+                    const b = rawData[i*4+2];
+
+                    colors[i*3] = r;
+                    colors[i*3+1] = g;
+                    colors[i*3+2] = b;
+
+                    let lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                    if (invert) lum = 1 - lum;
+                    lum = ((lum - 0.5) * contrast) + 0.5;
+                    pixels[i] = Math.max(0, Math.min(1, lum));
+                }
+
+                ctx.fillStyle = rainbow ? 'black' : 'white';
+                ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+                window.getPixelColor = function(x, y) {
+                    x = Math.max(0, Math.min(Math.floor(x), canvasSize - 1));
+                    y = Math.max(0, Math.min(Math.floor(y), canvasSize - 1));
+                    const idx = (y * canvasSize + x);
+                    return `rgb(${colors[idx*3]}, ${colors[idx*3+1]}, ${colors[idx*3+2]})`;
+                };
+
+                if (mode === 'spiro') {
+                    generateSpiroglyphic(pixels, colors, rainbow, keepColor, sonorize);
+                } else if (mode === 'string') {
+                    generateStringArt(pixels, colors, rainbow, keepColor, sonorize);
+                } else if (mode === 'dotwork') {
+                    generateDotwork(pixels, colors, rainbow, keepColor);
+                } else if (mode === 'waves') {
+                    generateWaves(pixels, colors, rainbow, keepColor);
+                } else if (mode === 'halftone') {
+                    generateHalftone(pixels, colors, rainbow, keepColor);
+                } else if (mode === 'ascii') {
+                    generateASCII(pixels, colors, rainbow, keepColor);
+                } else if (mode === 'lowpoly') {
+                    generateLowPoly(pixels, colors, rainbow, keepColor);
+                } else if (mode === 'contour') {
+                    generateContour(pixels, colors, rainbow, keepColor);
+                }
+            }
+
+            // 1. SPIROGLYPHIC
+            function generateSpiroglyphic(pixels, colors, rainbow, keepColor, sonorize) {
+                const spirals = parseInt(document.getElementById('param1').value);
+                const maxThick = parseFloat(document.getElementById('param2').value);
+                const patternMode = document.getElementById('paramCheck')?.checked || false;
+
+                const cx = canvasSize / 2, cy = canvasSize / 2;
+                const maxRadius = canvasSize / 2 * 0.95;
+                const numSteps = spirals * 360;
+                let currentStep = 0, prevX = cx, prevY = cy;
+                let colorProgress = 0;
+
+                function step() {
+                    const batch = 300;
+                    for (let i = 0; i < batch && currentStep <= numSteps; i++) {
+                        const angle = (currentStep / 360) * Math.PI * 2;
+                        const baseRadius = (angle / (spirals * Math.PI * 2)) * maxRadius;
+                        const curX = cx + Math.cos(angle) * baseRadius;
+                        const curY = cy + Math.sin(angle) * baseRadius;
+
+                        const px = Math.max(0, Math.min(Math.floor(curX), canvasSize-1));
+                        const py = Math.max(0, Math.min(Math.floor(curY), canvasSize-1));
+                        const lum = pixels[py * canvasSize + px];
+                        const thick = Math.max(0.2, (1 - lum) * maxThick);
+
+                        if (currentStep > 0) {
+                            ctx.beginPath();
+                            ctx.moveTo(prevX, prevY);
+                            ctx.lineTo(curX, curY);
+
+                            if (patternMode) {
+                                ctx.lineWidth = 1;
+                                ctx.strokeStyle = rainbow ? `hsl(${colorProgress % 360}, 100%, 50%)` : 'black';
+                            } else {
+                                ctx.lineWidth = thick;
+                                if (keepColor) {
+                                    ctx.strokeStyle = getPixelColor(curX, curY);
+                                } else if (rainbow) {
+                                    colorProgress += (thick * 0.25);
+                                    ctx.strokeStyle = `hsl(${colorProgress % 360}, 100%, 50%)`;
+                                } else {
+                                    ctx.strokeStyle = 'black';
+                                }
+                            }
+                            ctx.stroke();
+                        }
+                        prevX = curX; prevY = curY;
+                        currentStep++;
+                    }
+
+                    if (sonorize && audioReady && currentStep < numSteps) {
+                        const lum = pixels[Math.floor(prevY) * canvasSize + Math.floor(prevX)];
+                        const noteIdx = Math.floor((1 - lum) * (extendedScale.length - 1));
+                        synth.triggerAttackRelease(extendedScale[noteIdx], "16n");
+                    }
+
+                    if (currentStep <= numSteps) {
+                        statusMessage.textContent = `Generando espiral: ${Math.floor((currentStep/numSteps)*100)}%`;
+                        requestAnimationFrame(step);
+                    } else {
+                        finalizeSuccess();
+                    }
+                }
+                requestAnimationFrame(step);
+            }
+
+            // 2. STRING ART
+            function generateStringArt(pixels, colors, rainbow, keepColor, sonorize) {
+                const numPins = parseInt(document.getElementById('param1').value);
+                const weight = parseInt(document.getElementById('param2').value);
+                const maxLines = parseInt(document.getElementById('param3').value);
+
+                const cx = canvasSize / 2, cy = canvasSize / 2, radius = cx - 10;
+                const pins = [];
+                for(let i = 0; i < numPins; i++) {
+                    const angle = (i / numPins) * Math.PI * 2;
+                    pins.push({ x: Math.round(cx + Math.cos(angle)*radius), y: Math.round(cy + Math.sin(angle)*radius) });
+                }
+
+                const darkness = new Float32Array(canvasSize * canvasSize);
+                for(let i=0; i<pixels.length; i++) darkness[i] = (1 - pixels[i]) * 255;
+
+                function getLinePixels(x0, y0, x1, y1) {
+                    const pts = [];
+                    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+                    const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+                    let err = dx + dy, cx = x0, cy = y0;
+                    while (true) {
+                        pts.push(cy * canvasSize + cx);
+                        if (cx === x1 && cy === y1) break;
+                        const e2 = 2 * err;
+                        if (e2 >= dy) { err += dy; cx += sx; }
+                        if (e2 <= dx) { err += dx; cy += sy; }
+                    }
+                    return pts;
+                }
+
+                let currentPin = 0, drawnLines = 0;
+                const recentPins = [];
+                const minPinDist = Math.max(15, Math.floor(numPins / 5));
+                const alpha = Math.max(0.08, Math.min(0.4, weight / 100));
+
+                function stepLines() {
+                    const batch = 25;
+                    let bLines = 0;
+
+                    while(bLines < batch && drawnLines < maxLines) {
+                        let bestPin = -1, maxScore = -1, bestCoords = null;
+
+                        for(let tp = 0; tp < numPins; tp++) {
+                            const dist = Math.min(Math.abs(currentPin - tp), numPins - Math.abs(currentPin - tp));
+                            if (dist < minPinDist || recentPins.includes(tp)) continue;
+
+                            const coords = getLinePixels(pins[currentPin].x, pins[currentPin].y, pins[tp].x, pins[tp].y);
+                            let score = 0;
+                            const lengthBonus = Math.pow(coords.length, 0.75); // Prioriza cruzar la imagen completa
+                            for(let i=0; i<coords.length; i++) score += darkness[coords[i]];
+                            score = (score / lengthBonus) + (dist * 0.1);
+
+                            if (score > maxScore) { maxScore = score; bestPin = tp; bestCoords = coords; }
+                        }
+
+                        if (bestPin === -1 || maxScore < 1) break;
+
+                        ctx.beginPath();
+                        ctx.moveTo(pins[currentPin].x, pins[currentPin].y);
+                        ctx.lineTo(pins[bestPin].x, pins[bestPin].y);
+                        
+                        if (keepColor) {
+                            ctx.strokeStyle = getPixelColor(pins[bestPin].x, pins[bestPin].y);
+                        } else if (rainbow) {
+                            ctx.strokeStyle = `hsla(${(drawnLines/maxLines)*360}, 100%, 50%, ${alpha})`;
+                        } else {
+                            ctx.strokeStyle = `rgba(0,0,0,${alpha})`;
+                        }
+                        ctx.stroke();
+
+                        for(let i=0; i<bestCoords.length; i++) {
+                            darkness[bestCoords[i]] = Math.max(0, darkness[bestCoords[i]] - (80 + weight * 1.5));
+                        }
+
+                        currentPin = bestPin;
+                        recentPins.push(currentPin);
+                        if (recentPins.length > Math.floor(numPins * 0.3)) recentPins.shift();
+
+                        drawnLines++;
+                        bLines++;
+                    }
+
+                    if (sonorize && audioReady && bLines > 0) {
+                        const noteIdx = Math.floor((drawnLines / maxLines) * (extendedScale.length - 1));
+                        polySynth.triggerAttackRelease(extendedScale[noteIdx], "16n");
+                    }
+
+                    if (drawnLines < maxLines && bLines > 0) {
+                        statusMessage.textContent = `Tejiendo hilo ${drawnLines} de ${maxLines}...`;
+                        requestAnimationFrame(stepLines);
+                    } else {
+                        finalizeSuccess();
+                    }
+                }
+                requestAnimationFrame(stepLines);
+            }
+
+            // 3. PUNTILLISMO (DOTWORK)
+            function generateDotwork(pixels, colors, rainbow, keepColor) {
+                const density = parseInt(document.getElementById('param1').value);
+                const maxRadius = parseFloat(document.getElementById('param2').value);
+                const step = Math.floor(canvasSize / density);
+
+                for (let y = step / 2; y < canvasSize; y += step) {
+                    for (let x = step / 2; x < canvasSize; x += step) {
+                        const idx = Math.floor(y) * canvasSize + Math.floor(x);
+                        const lum = pixels[idx];
+                        const radius = (1 - lum) * maxRadius;
+
+                        if (radius > 0.5) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, radius, 0, Math.PI * 2);
+                            if (keepColor) {
+                                ctx.fillStyle = `rgb(${colors[idx*3]}, ${colors[idx*3+1]}, ${colors[idx*3+2]})`;
+                            } else if (rainbow) {
+                                ctx.fillStyle = `hsl(${(x/canvasSize)*360}, 100%, 50%)`;
+                            } else {
+                                ctx.fillStyle = 'black';
+                            }
+                            ctx.fill();
+                        }
+                    }
+                }
+                finalizeSuccess();
+            }
+
+            // 4. ONDAS ACÚSTICAS (WAVES)
+            function generateWaves(pixels, colors, rainbow, keepColor) {
+                const rows = parseInt(document.getElementById('param1').value);
+                const amplitude = parseFloat(document.getElementById('param2').value);
+                const rowStep = canvasSize / rows;
+
+                ctx.lineWidth = 1.5;
+                for (let y = rowStep; y < canvasSize - rowStep; y += rowStep) {
+                    ctx.beginPath();
+                    for (let x = 0; x < canvasSize; x += 3) {
+                        const idx = Math.floor(y) * canvasSize + Math.floor(x);
+                        const lum = pixels[idx];
+                        const displacement = (1 - lum) * amplitude * 10;
+                        const curY = y - displacement;
+
+                        if (x === 0) ctx.moveTo(x, curY);
+                        else ctx.lineTo(x, curY);
+                    }
+
+                    if (keepColor) {
+                        ctx.strokeStyle = getPixelColor(canvasSize/2, y);
+                    } else if (rainbow) {
+                        ctx.strokeStyle = `hsl(${(y/canvasSize)*360}, 100%, 50%)`;
+                    } else {
+                        ctx.strokeStyle = 'black';
+                    }
+                    ctx.stroke();
+                }
+                finalizeSuccess();
+            }
+
+            // 5. MEDIO TONO (HALFTONE)
+            function generateHalftone(pixels, colors, rainbow, keepColor) {
+                const resolution = parseInt(document.getElementById('param1').value);
+                const maxRad = parseFloat(document.getElementById('param2').value);
+                const cellSize = canvasSize / resolution;
+
+                for (let y = 0; y < canvasSize; y += cellSize) {
+                    for (let x = 0; x < canvasSize; x += cellSize) {
+                        let sum = 0, count = 0;
+                        for (let dy = 0; dy < cellSize; dy += 4) {
+                            for (let dx = 0; dx < cellSize; dx += 4) {
+                                const px = Math.min(canvasSize - 1, Math.floor(x + dx));
+                                const py = Math.min(canvasSize - 1, Math.floor(y + dy));
+                                sum += pixels[py * canvasSize + px];
+                                count++;
+                            }
+                        }
+                        const avgLum = sum / count;
+                        const radius = (1 - avgLum) * maxRad;
+
+                        if (radius > 0.5) {
+                            ctx.beginPath();
+                            ctx.arc(x + cellSize/2, y + cellSize/2, radius, 0, Math.PI * 2);
+                            if (keepColor) {
+                                ctx.fillStyle = getPixelColor(x + cellSize/2, y + cellSize/2);
+                            } else if (rainbow) {
+                                ctx.fillStyle = `hsl(${((x+y)/canvasSize)*180}, 100%, 50%)`;
+                            } else {
+                                ctx.fillStyle = 'black';
+                            }
+                            ctx.fill();
+                        }
+                    }
+                }
+                finalizeSuccess();
+            }
+
+            // 6. ARTE ASCII
+            function generateASCII(pixels, colors, rainbow, keepColor) {
+                const cols = parseInt(document.getElementById('param1').value);
+                const fontSize = parseInt(document.getElementById('param2').value);
+                const charStep = canvasSize / cols;
+                const asciiChars = "@#W$9876543210?!abc;:+-. ";
+
+                ctx.font = `${fontSize}px monospace`;
+                ctx.textBaseline = 'top';
+
+                for (let y = 0; y < canvasSize; y += charStep) {
+                    for (let x = 0; x < canvasSize; x += charStep) {
+                        const idx = Math.floor(y) * canvasSize + Math.floor(x);
+                        const lum = pixels[idx];
+                        const charIdx = Math.floor(lum * (asciiChars.length - 1));
+                        const char = asciiChars[charIdx] || '.';
+
+                        if (keepColor) {
+                            ctx.fillStyle = getPixelColor(x, y);
+                        } else if (rainbow) {
+                            ctx.fillStyle = `hsl(${(x/canvasSize)*360}, 100%, 50%)`;
+                        } else {
+                            ctx.fillStyle = 'black';
+                        }
+                        ctx.fillText(char, x, y);
+                    }
+                }
+                finalizeSuccess();
+            }
+
+            // 7. LOW POLY (DELAUNAY)
+            function generateLowPoly(pixels, colors, rainbow, keepColor) {
+                const numPoints = parseInt(document.getElementById('param1').value);
+                const drawLines = document.getElementById('paramCheck')?.checked || true;
+
+                const points = [[0, 0], [canvasSize, 0], [0, canvasSize], [canvasSize, canvasSize]];
+                let attempts = 0;
+                while (points.length < numPoints && attempts < numPoints * 10) {
+                    attempts++;
+                    const rx = Math.random() * canvasSize;
+                    const ry = Math.random() * canvasSize;
+                    const lum = pixels[Math.floor(ry) * canvasSize + Math.floor(rx)];
+                    if (Math.random() > lum * 0.8) {
+                        points.push([rx, ry]);
+                    }
+                }
+
+                const delaunay = d3.Delaunay.from(points);
+                const voronoi = delaunay.voronoi([0, 0, canvasSize, canvasSize]);
+
+                for (let i = 0; i < points.length; i++) {
+                    const polygon = voronoi.cellPolygon(i);
+                    if (!polygon) continue;
+
+                    const cx = points[i][0], cy = points[i][1];
+                    const pIdx = Math.floor(cy) * canvasSize + Math.floor(cx);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(polygon[0][0], polygon[0][1]);
+                    for (let j = 1; j < polygon.length; j++) ctx.lineTo(polygon[j][0], polygon[j][1]);
+                    ctx.closePath();
+
+                    if (keepColor) {
+                        ctx.fillStyle = `rgb(${colors[pIdx*3]}, ${colors[pIdx*3+1]}, ${colors[pIdx*3+2]})`;
+                    } else if (rainbow) {
+                        ctx.fillStyle = `hsl(${(cx/canvasSize)*360}, 80%, 60%)`;
+                    } else {
+                        const lum = pixels[pIdx];
+                        const shade = Math.floor(lum * 255);
+                        ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+                    }
+                    ctx.fill();
+
+                    if (drawLines) {
+                        ctx.strokeStyle = rainbowMode.checked ? 'white' : 'rgba(0,0,0,0.15)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+                finalizeSuccess();
+            }
+
+            // 8. LÍNEAS TOPOGRÁFICAS (CONTOUR)
+            function generateContour(pixels, colors, rainbow, keepColor) {
+                const levels = parseInt(document.getElementById('param1').value);
+                const lineWidth = parseFloat(document.getElementById('param2').value);
+                const step = 10;
+
+                ctx.lineWidth = lineWidth;
+                for (let l = 1; l < levels; l++) {
+                    const threshold = l / levels;
+                    
+                    for (let y = 0; y < canvasSize - step; y += step) {
+                        for (let x = 0; x < canvasSize - step; x += step) {
+                            const p1 = pixels[y * canvasSize + x];
+                            const p2 = pixels[y * canvasSize + (x + step)];
+
+                            if ((p1 <= threshold && p2 > threshold) || (p1 > threshold && p2 <= threshold)) {
+                                ctx.beginPath();
+                                ctx.moveTo(x + step/2, y);
+                                ctx.lineTo(x + step/2, y + step);
+                                
+                                if (keepColor) ctx.strokeStyle = getPixelColor(x, y);
+                                else if (rainbow) ctx.strokeStyle = `hsl(${(l/levels)*360}, 100%, 50%)`;
+                                else ctx.strokeStyle = 'black';
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                }
+                finalizeSuccess();
+            }
+
+            function finalizeSuccess() {
+                statusMessage.textContent = "¡Obra generada con éxito!";
+                exportBtn.disabled = false;
+                printBtn.disabled = false;
+                generateBtn.disabled = false;
+            }
+
+            exportBtn.addEventListener('click', () => {
+                const link = document.createElement('a');
+                link.download = 'arte-generativo.png';
+                link.href = spiroCanvas.toDataURL('image/png');
+                link.click();
+            });
+
+            printBtn.addEventListener('click', () => {
+                window.print();
+            });
+        });
+    </script>
+</body>
+</html>

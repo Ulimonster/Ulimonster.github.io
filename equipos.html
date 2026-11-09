@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Equipos | Herramienta Docente</title>
+    <!-- Tailwind CSS para los estilos de la interfaz -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS para la exportación a Excel (XLSX) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        /* Personalización de la barra de desplazamiento */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Estilos específicos y exclusivos para impresión */
+        @media print {
+            @page { margin: 1cm; }
+            body { 
+                background: white !important; 
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .no-print { display: none !important; }
+            #main-content { 
+                padding: 0 !important; 
+                margin: 0 !important; 
+                width: 100% !important; 
+                background: white !important;
+            }
+            #teamsContainer {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1.5rem !important;
+                width: 100% !important;
+            }
+            .team-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                border: 2px solid #e2e8f0 !important;
+                box-shadow: none !important;
+                background: white !important;
+                margin-bottom: 1rem;
+            }
+            /* Adaptar el input del nombre del equipo para que se vea como texto normal al imprimir */
+            .team-name {
+                color: black !important;
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+            .bg-indigo-600 {
+                background-color: #f1f5f9 !important;
+                color: #0f172a !important;
+                border-bottom: 2px solid #e2e8f0 !important;
+            }
+            .bg-gray-50 {
+                background-color: white !important;
+            }
+            .student-item {
+                border: none !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+                border-radius: 0 !important;
+                padding: 0.25rem 0 !important;
+            }
+            /* Mostrar el icono del capitán si está activo en la impresión */
+            .captain-icon {
+                display: none;
+            }
+            .is-captain .captain-icon {
+                display: block !important;
+                color: #eab308 !important; /* Amarillo oscuro para contraste */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col md:flex-row">
+
+    <!-- Panel Lateral (Configuración) -->
+    <aside id="sidebar" class="no-print w-full md:w-80 md:h-screen md:sticky top-0 bg-white border-r border-gray-200 shadow-sm flex flex-col z-10">
+        <div class="p-6 border-b border-gray-100">
+            <h1 class="text-2xl font-extrabold text-indigo-600 flex items-center gap-2">
+                <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path></svg>
+                AgrupaDOS
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">Generador de equipos</p>
+        </div>
+
+        <div class="p-6 flex-1 overflow-y-auto space-y-6">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Alumnos (uno por línea)</label>
+                <textarea id="studentList" rows="10" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none shadow-inner transition-shadow" placeholder="Pegar lista de alumnos"></textarea>
+                <div class="text-xs text-gray-500 mt-1 flex justify-between font-medium">
+                    <span>Total de alumnos: <span id="studentCount" class="text-indigo-600 font-bold">0</span></span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Miembros por equipo</label>
+                <input type="number" id="teamSize" value="2" min="2" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-inner transition-shadow">
+            </div>
+
+            <button onclick="generarEquipos()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                Generar Equipos
+            </button>
+        </div>
+
+        <div class="p-6 border-t border-gray-100 bg-gray-50 space-y-3">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Exportar / Imprimir</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="exportJSON()" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-lg text-sm font-medium transition-colors shadow-sm flex justify-center items-center gap-1" title="Exportar a JSON">
+                    JSON
+                </button>
+                <button onclick="exportXLSX()" class="bg-white border border-gray-300 text-green-700 hover:bg-green-50 py-2 px-3 rounded-lg text-sm font-medium transition-colors shadow-sm flex justify-center items-center gap-1" title="Exportar a Excel">
+                    Excel
+                </button>
+                <button onclick="window.print()" class="col-span-2 bg-gray-800 hover:bg-gray-900 text-white py-2.5 px-3 rounded-lg text-sm font-medium transition-colors shadow flex justify-center items-center gap-2 active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Imprimir Equipos
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Contenedor Principal (Donde se muestran los equipos) -->
+    <main id="main-content" class="flex-1 bg-slate-50 p-6 md:p-8 md:h-screen md:overflow-y-auto">
+        <!-- Estado Vacío -->
+        <div id="emptyState" class="h-full flex flex-col items-center justify-center text-gray-400 space-y-4 no-print min-h-[60vh]">
+            <svg class="w-24 h-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            <p class="text-lg font-medium text-gray-500">Los equipos generados aparecerán aquí</p>
+            <p class="text-sm max-w-sm text-center">Ingresa la lista de alumnos, ajusta el tamaño y haz clic en "Generar Equipos".</p>
+        </div>
+
+        <!-- Zona para alumnos sin equipo (Aparece al eliminar equipos) -->
+        <div id="unassignedContainer" class="hidden mb-8 no-print bg-white p-4 rounded-xl shadow-sm border-2 border-dashed border-yellow-300">
+            <h2 class="text-sm font-bold text-yellow-600 mb-3 flex items-center justify-between uppercase tracking-wide">
+                <span class="flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                    Alumnos sin equipo (Arrastra para reasignar)
+                </span>
+                <span id="unassignedCount" class="bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-bold">0 mb.</span>
+            </h2>
+            <ul id="unassignedList" class="team-list min-h-[60px] bg-yellow-50/50 rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 transition-colors">
+                <!-- Los estudiantes sin asignar caerán aquí -->
+            </ul>
+        </div>
+        
+        <!-- Grid de Equipos -->
+        <div id="teamsContainer" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 hidden">
+            <!-- Los equipos se insertarán aquí dinámicamente -->
+        </div>
+    </main>
+
+    <!-- Componente Toast para Notificaciones -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-2xl transform translate-y-[150%] opacity-0 transition-all duration-300 z-50 flex items-center gap-3 no-print">
+        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span id="toastMessage" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- Script Principal -->
+    <script>
+        // --- 1. DICCIONARIOS PARA GENERACIÓN DE NOMBRES ---
+        const adjetivos = ["Rápidos", "Furiosos", "Valientes", "Inteligentes", "Creativos", "Invencibles", "Místicos", "Galácticos", "Épicos", "Supremos", "Audaces", "Legendarios", "Estratégicos", "Implacables", "Cósmicos"];
+        const animales = ["Leones", "Tigres", "Dragones", "Tiburones", "Lobos", "Halcones", "Titanes", "Osos", "Fénix", "Jaguares", "Delfines", "Búhos", "Linces"];
+
+        function generarNombreAleatorio() {
+            const adj = adjetivos[Math.floor(Math.random() * adjetivos.length)];
+            const anim = animales[Math.floor(Math.random() * animales.length)];
+            return `Los ${anim} ${adj}`;
+        }
+
+        // --- 2. GESTIÓN DE INTERFAZ Y UTILIDADES ---
+        
+        // Actualizar el contador de alumnos en tiempo real
+        document.getElementById('studentList').addEventListener('input', function(e) {
+            const lines = e.target.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            document.getElementById('studentCount').textContent = lines.length;
+        });
+
+        // Mostrar notificación Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = msg;
+            toast.classList.remove('translate-y-[150%]', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[150%]', 'opacity-0');
+            }, 3000);
+        }
+
+        // --- 3. GENERACIÓN DE EQUIPOS ---
+        function generarEquipos() {
+            const text = document.getElementById('studentList').value;
+            const size = parseInt(document.getElementById('teamSize').value, 10);
+
+            if(!text.trim()) {
+                showToast("Por favor, ingresa la lista de alumnos.");
+                return;
+            }
+            if(isNaN(size) || size < 1) {
+                showToast("Por favor, ingresa un tamaño de equipo válido (mínimo 1).");
+                return;
+            }
+
+            let students = text.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            if(students.length === 0) {
+                showToast("No se encontraron nombres válidos.");
+                return;
+            }
+
+            // Algoritmo de Fisher-Yates para barajar el arreglo de forma aleatoria
+            for (let i = students.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [students[i], students[j]] = [students[j], students[i]];
+            }
+
+            const container = document.getElementById('teamsContainer');
+            container.innerHTML = ''; // Limpiar equipos anteriores
+            
+            // Limpiar también la zona de sin asignar
+            document.getElementById('unassignedList').innerHTML = '';
+            document.getElementById('unassignedContainer').classList.add('hidden');
+
+            // Distribuir en equipos
+            let i = 0;
+            while(i < students.length) {
+                // Tomar la porción (slice) correspondiente al tamaño del equipo
+                const teamMembers = students.slice(i, i + size);
+                const teamCard = createTeamCard(generarNombreAleatorio(), teamMembers);
+                container.appendChild(teamCard);
+                i += size;
+            }
+
+            // Actualizar vista
+            document.getElementById('emptyState').classList.add('hidden');
+            container.classList.remove('hidden');
+            showToast("¡Equipos generados exitosamente!");
+        }
+
+        // --- 4. CREACIÓN Y ELIMINACIÓN DE ELEMENTOS DOM ---
+        function createTeamCard(teamName, members) {
+            const card = document.createElement('div');
+            card.className = "team-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col transition-all duration-200 hover:shadow-md";
+
+            // Cabecera del equipo
+            const header = document.createElement('div');
+            header.className = "bg-indigo-600 px-4 py-3 flex justify-between items-center";
+            header.innerHTML = `
+                <input type="text" class="font-bold text-lg team-name bg-transparent border-none outline-none focus:ring-2 focus:ring-white/50 rounded px-1 text-white w-full mr-2" value="${teamName}" title="Clic para editar el nombre" />
+                <div class="flex items-center gap-2">
+                    <span class="text-xs bg-indigo-800/80 text-white px-2 py-1 rounded-full whitespace-nowrap no-print"><span class="member-count">${members.length}</span> mb.</span>
+                    <button type="button" class="delete-team-btn no-print text-indigo-200 hover:text-white transition-colors focus:outline-none p-1.5 rounded-full hover:bg-indigo-700" title="Eliminar equipo">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            `;
+            
+            // Asignar evento al botón de eliminar
+            const deleteBtn = header.querySelector('.delete-team-btn');
+            deleteBtn.addEventListener('click', () => deleteTeam(card));
+            
+            card.appendChild(header);
+
+            // Contenedor de la lista (Drop Zone)
+            const ul = document.createElement('ul');
+            ul.className = "team-list p-3 space-y-2 flex-1 min-h-[120px] bg-gray-50 transition-colors";
+
+            members.forEach(member => {
+                const li = createStudentItem(member);
+                ul.appendChild(li);
+            });
+
+            card.appendChild(ul);
+            setupDropZone(ul, card);
+
+            return card;
+        }
+        
+        // Función para eliminar el equipo de forma segura
+        function deleteTeam(card) {
+            const ul = card.querySelector('.team-list');
+            const members = Array.from(ul.querySelectorAll('.student-item'));
+            
+            if (members.length > 0) {
+                // Si hay miembros, los movemos al espacio de "Sin asignar"
+                const unassignedContainer = document.getElementById('unassignedContainer');
+                const unassignedList = document.getElementById('unassignedList');
+                
+                unassignedContainer.classList.remove('hidden');
+                
+                members.forEach(member => {
+                    member.classList.remove('is-captain'); // Quitamos capitanía
+                    unassignedList.appendChild(member);
+                });
+                showToast(`Equipo eliminado. ${members.length} alumnos pasaron a "Sin equipo".`);
+            } else {
+                showToast("Equipo vacío eliminado.");
+            }
+            
+            card.remove(); // Eliminar la tarjeta visualmente
+            updateMemberCounts();
+            
+            // Verificar si la pantalla quedó completamente vacía
+            const remainingTeams = document.querySelectorAll('.team-card').length;
+            const remainingUnassigned = document.querySelectorAll('#unassignedList .student-item').length;
+            
+            if (remainingTeams === 0 && remainingUnassigned === 0) {
+                document.getElementById('emptyState').classList.remove('hidden');
+                document.getElementById('teamsContainer').classList.add('hidden');
+                document.getElementById('unassignedContainer').classList.add('hidden');
+            }
+        }
+
+        function createStudentItem(name) {
+            const li = document.createElement('li');
+            // Clase "group" para permitir el hover effect del icono del capitan
+            li.className = "student-item flex items-center justify-between bg-white p-2 rounded-lg border border-gray-200 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-colors shadow-sm group";
+            li.draggable = true;
+
+            // Contenedor Izquierdo (Drag handle + Nombre)
+            const leftDiv = document.createElement('div');
+            leftDiv.className = "flex items-center gap-3 overflow-hidden flex-1";
+
+            const dragIcon = document.createElement('div');
+            dragIcon.className = "drag-handle w-4 h-4 text-gray-300 group-hover:text-gray-500 no-print flex-shrink-0 transition-colors";
+            dragIcon.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>`;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = "student-name truncate font-medium text-gray-700 text-sm";
+            nameSpan.textContent = name; // Evita inyecciones HTML
+
+            leftDiv.appendChild(dragIcon);
+            leftDiv.appendChild(nameSpan);
+
+            // Contenedor Derecho (Botón de Capitán)
+            const btn = document.createElement('button');
+            btn.className = "no-print p-1.5 rounded-full hover:bg-yellow-50 transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-yellow-200";
+            btn.title = "Asignar como Capitán";
+            btn.onclick = function() { toggleCaptain(this); };
+            btn.innerHTML = `<svg class="captain-icon w-5 h-5 text-gray-300 transition-colors group-[.is-captain]:text-yellow-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+
+            li.appendChild(leftDiv);
+            li.appendChild(btn);
+
+            // Eventos de Drag & Drop para el elemento
+            li.addEventListener('dragstart', handleDragStart);
+            li.addEventListener('dragend', handleDragEnd);
+
+            return li;
+        }
+
+        // --- 5. LÓGICA DE DRAG AND DROP ---
+        let dragSourceElement = null;
+
+        function handleDragStart(e) {
+            dragSourceElement = this;
+            e.dataTransfer.effectAllowed = 'move';
+            // Ligera opacidad para indicar que se está moviendo
+            setTimeout(() => this.classList.add('opacity-40'), 0);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('opacity-40');
+            dragSourceElement = null;
+            // Limpieza de seguridad
+            document.querySelectorAll('.team-list').forEach(list => {
+                list.classList.remove('bg-indigo-50', 'ring-2', 'ring-indigo-200', 'ring-inset', 'bg-yellow-100', 'ring-yellow-300');
+            });
+            updateMemberCounts();
+        }
+
+        // Configuración de zona soltable general (para equipos y zona de sin asignar)
+        function setupDropZone(ul, containerNode) {
+            const isUnassigned = ul.id === 'unassignedList';
+            const bgClass = isUnassigned ? 'bg-yellow-100' : 'bg-indigo-50';
+            const ringClass = isUnassigned ? 'ring-yellow-300' : 'ring-indigo-200';
+            
+            containerNode.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                ul.classList.add(bgClass, 'ring-2', ringClass, 'ring-inset');
+                
+                if(dragSourceElement) {
+                    const afterElement = getDragAfterElement(ul, e.clientY);
+                    if (afterElement == null) {
+                        ul.appendChild(dragSourceElement);
+                    } else {
+                        ul.insertBefore(dragSourceElement, afterElement);
+                    }
+                }
+            });
+
+            containerNode.addEventListener('dragleave', (e) => {
+                if(!containerNode.contains(e.relatedTarget)) {
+                     ul.classList.remove(bgClass, 'ring-2', ringClass, 'ring-inset');
+                }
+            });
+
+            containerNode.addEventListener('drop', (e) => {
+                e.preventDefault();
+                ul.classList.remove(bgClass, 'ring-2', ringClass, 'ring-inset');
+                updateMemberCounts();
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.student-item:not(.opacity-40)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateMemberCounts() {
+            // Actualizar cuenta en equipos
+            document.querySelectorAll('.team-card').forEach(card => {
+                const count = card.querySelectorAll('.student-item').length;
+                card.querySelector('.member-count').textContent = count;
+            });
+            
+            // Actualizar cuenta en zona de sin asignar
+            const unassignedList = document.getElementById('unassignedList');
+            const unassignedCount = unassignedList.querySelectorAll('.student-item').length;
+            document.getElementById('unassignedCount').textContent = `${unassignedCount} mb.`;
+            
+            // Ocultar zona de sin asignar si se vacía automáticamente (y si hay equipos)
+            if (unassignedCount === 0 && document.querySelectorAll('.team-card').length > 0) {
+                document.getElementById('unassignedContainer').classList.add('hidden');
+            }
+        }
+
+        // --- 6. LÓGICA DE CAPITANES ---
+        function toggleCaptain(btn) {
+            const li = btn.closest('.student-item');
+            const ul = li.closest('.team-list');
+
+            // Si ya era capitán, quitárselo
+            if(li.classList.contains('is-captain')) {
+                li.classList.remove('is-captain');
+                return;
+            }
+
+            // Quitar capitanía al resto del contenedor
+            ul.querySelectorAll('.student-item').forEach(item => {
+                item.classList.remove('is-captain');
+            });
+
+            // Asignar al nuevo
+            li.classList.add('is-captain');
+        }
+
+        // --- 7. EXPORTACIÓN DE DATOS ---
+        function getTeamsStateFromDOM() {
+            const teams = [];
+            
+            // Capturar equipos normales
+            document.querySelectorAll('.team-card').forEach(card => {
+                const teamName = card.querySelector('.team-name').value;
+                const members = [];
+                card.querySelectorAll('.student-item').forEach(item => {
+                    members.push({
+                        name: item.querySelector('.student-name').textContent,
+                        isCaptain: item.classList.contains('is-captain')
+                    });
+                });
+                teams.push({ teamName, members });
+            });
+            
+            // Capturar alumnos sin equipo
+            const unassignedMembers = [];
+            document.querySelectorAll('#unassignedList .student-item').forEach(item => {
+                unassignedMembers.push({
+                    name: item.querySelector('.student-name').textContent,
+                    isCaptain: false // En la zona sin asignar no hay capitanes
+                });
+            });
+            
+            // Incluir el grupo de sin asignar si no está vacío
+            if (unassignedMembers.length > 0) {
+                teams.push({ teamName: "Sin Equipo (Por Asignar)", members: unassignedMembers });
+            }
+            
+            return teams;
+        }
+
+        function exportJSON() {
+            const teams = getTeamsStateFromDOM();
+            if(teams.length === 0) {
+                showToast("No hay equipos para exportar.");
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(teams, null, 2));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", "equipos_clase.json");
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            showToast("¡Archivo JSON descargado!");
+        }
+
+        function exportXLSX() {
+            const teams = getTeamsStateFromDOM();
+            if(teams.length === 0) {
+                showToast("No hay equipos para exportar.");
+                return;
+            }
+
+            // Aplanar la estructura para formato de tabla
+            const data = [];
+            teams.forEach(t => {
+                t.members.forEach(m => {
+                    data.push({
+                        "Equipo": t.teamName,
+                        "Nombre del Alumno": m.name,
+                        "Rol": m.isCaptain ? "Capitán 👑" : "Miembro"
+                    });
+                });
+            });
+
+            // Generación con SheetJS
+            const worksheet = XLSX.utils.json_to_sheet(data);
+
+            // Ajuste del ancho de columnas para mejorar la presentación
+            worksheet['!cols'] = [
+                { wch: 30 }, // Equipo
+                { wch: 35 }, // Nombre
+                { wch: 15 }  // Rol
+            ];
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Equipos Formados");
+            XLSX.writeFile(workbook, "Equipos_Clase.xlsx");
+            showToast("¡Archivo Excel descargado!");
+        }
+
+        // Inicialización
+        window.onload = () => {
+            const demoList = "";
+            document.getElementById('studentList').value = demoList;
+            document.getElementById('studentCount').textContent = "0";
+            
+            // Inicializar la zona de Drag&Drop para "Sin Asignar"
+            const unassignedContainer = document.getElementById('unassignedContainer');
+            const unassignedList = document.getElementById('unassignedList');
+            setupDropZone(unassignedList, unassignedContainer);
+        };
+    </script>
+</body>
+</html>

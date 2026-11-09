@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Etiquetas y Auditoría de Inventario</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse para leer CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- JsBarcode para códigos de barras -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    
+    <style>
+        /* CONFIGURACIÓN EXACTA PARA 10 ETIQUETAS POR HOJA CARTA (2 columnas x 5 filas) */
+        @page {
+            size: letter;
+            margin: 0.25in; /* Márgenes mínimos para aprovechar el espacio (8x10.5 pulgadas útiles) */
+        }
+        
+        @media print {
+            body { background: white; }
+            .no-print { display: none !important; }
+            
+            #print-area {
+                display: grid !important;
+                grid-template-columns: repeat(2, 3.9in);
+                grid-auto-rows: 2in;
+                gap: 0.1in;
+                width: 100%;
+                justify-content: center;
+                align-content: start;
+            }
+            .label-card {
+                width: 3.9in !important;
+                height: 2in !important;
+                margin: 0 !important;
+                page-break-inside: avoid;
+                border: 1px dashed #9ca3af !important;
+            }
+        }
+
+        /* Estilos en pantalla para previsualizar */
+        #print-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .label-card {
+            width: 3.9in;
+            height: 2in;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            padding: 6px;
+        }
+
+        .barcode-container svg {
+            max-width: 100%;
+            height: 100%;
+            max-height: 35px; /* Reducido ligeramente para encajar en 2 pulgadas de alto */
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Utilidad para pestañas ocultas */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
+
+    <!-- PANEL DE CONTROL (Oculto al imprimir) -->
+    <div class="no-print max-w-5xl mx-auto p-6 bg-white shadow-md mt-6 rounded-lg mb-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-blue-800">Sistema de Inventario: Etiquetas y Auditoría</h1>
+            <button onclick="exportarJSON()" id="btnExportar" disabled class="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-gray-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                ↓ Exportar Todo a JSON
+            </button>
+        </div>
+        
+        <!-- Carga de Archivo Global -->
+        <div class="border-2 border-dashed border-blue-300 p-4 rounded bg-blue-50 mb-6 flex items-center justify-between">
+            <div class="flex-1">
+                <label class="block text-sm font-semibold text-blue-900 mb-1">1. Cargar archivo CSV de Inventario</label>
+                <input type="file" id="csvFileInput" accept=".csv" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
+            </div>
+            <div id="statusMessage" class="ml-4 text-sm font-medium text-gray-600 w-1/3 text-right">Esperando archivo...</div>
+        </div>
+
+        <!-- Pestañas -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button onclick="switchTab('etiquetas')" id="tab-etiquetas" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    🖨️ Generar e Imprimir Etiquetas
+                </button>
+                <button onclick="switchTab('auditoria')" id="tab-auditoria" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    📋 Seguimiento y Auditoría (Escáner)
+                </button>
+            </nav>
+        </div>
+
+        <!-- PESTAÑA 1: ETIQUETAS -->
+        <div id="content-etiquetas" class="tab-content active">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded border">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Rubro para Imprimir</label>
+                    <select id="rubroSelect" disabled class="w-full border border-gray-300 rounded p-2 text-sm bg-gray-100 disabled:opacity-50 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Carga un archivo primero...</option>
+                    </select>
+                </div>
+                
+                <div class="flex space-x-3 items-end">
+                    <button id="generateBtn" disabled class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                        Generar Vista Previa
+                    </button>
+                    <button id="printBtn" disabled onclick="window.print()" class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded hover:bg-green-700 disabled:opacity-50 transition-colors shadow-lg">
+                        Imprimir (10 por Hoja)
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2 text-xs text-gray-500 text-center">Nota: Asegúrate de seleccionar tamaño "Carta" y "Márgenes Predeterminados" o "Mínimos" en las opciones de impresión.</div>
+        </div>
+
+        <!-- PESTAÑA 2: AUDITORÍA -->
+        <div id="content-auditoria" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Estadísticas -->
+                <div class="col-span-1 bg-blue-50 p-4 rounded border border-blue-200">
+                    <h3 class="text-lg font-bold text-blue-800 mb-2">Progreso del Inventario</h3>
+                    <div class="text-3xl font-black text-gray-800 mb-1" id="stat-progress">0%</div>
+                    <div class="text-sm text-gray-600 mb-4"><span id="stat-verified" class="font-bold text-green-600">0</span> de <span id="stat-total" class="font-bold">0</span> artículos verificados</div>
+                    
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Escáner / Captura -->
+                <div class="col-span-2 bg-white p-4 rounded border border-gray-200">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Escanear Código NIS</label>
+                    <div class="flex">
+                        <input type="text" id="scannerInput" disabled placeholder="Usa la pistola de código de barras o escribe el NIS y presiona Enter..." class="flex-1 border-2 border-gray-300 p-3 rounded-l text-lg focus:outline-none focus:border-blue-500 disabled:opacity-50 uppercase">
+                        <button id="btnRegistrar" onclick="registrarEscaneo()" disabled class="bg-blue-600 text-white font-bold px-6 rounded-r hover:bg-blue-700 disabled:opacity-50">
+                            Registrar
+                        </button>
+                    </div>
+                    <div id="scan-feedback" class="mt-3 text-sm font-medium h-5"></div>
+                </div>
+            </div>
+
+            <!-- Tabla de Últimos Registros -->
+            <div class="mt-6 border rounded overflow-hidden">
+                <table class="min-w-full bg-white text-sm text-left">
+                    <thead class="bg-gray-100 text-gray-600 border-b">
+                        <tr>
+                            <th class="py-2 px-4 font-semibold">Estado</th>
+                            <th class="py-2 px-4 font-semibold">NIS</th>
+                            <th class="py-2 px-4 font-semibold">Descripción</th>
+                            <th class="py-2 px-4 font-semibold">Rubro</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody" class="divide-y divide-gray-200">
+                        <tr><td colspan="4" class="py-4 text-center text-gray-500">No hay datos. Carga un archivo CSV.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ÁREA DE ETIQUETAS (Visible solo en Pestaña 1 y al imprimir) -->
+    <div id="etiquetas-container" class="max-w-[8.5in] mx-auto mb-10">
+        <div id="print-area">
+            <!-- Las etiquetas se inyectarán aquí -->
+        </div>
+    </div>
+
+    <script>
+        let inventarioData = [];
+        let totalItems = 0;
+        let verifiedItems = 0;
+
+        // MANEJO DE PESTAÑAS
+        function switchTab(tabId) {
+            // Actualizar botones
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('border-transparent', 'text-gray-500');
+            document.getElementById(`tab-${tabId}`).classList.add('border-blue-500', 'text-blue-600');
+
+            // Actualizar contenido
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`content-${tabId}`).classList.add('active');
+
+            // Ocultar etiquetas si estamos en auditoria para no recargar visualmente (no afecta impresion si no imprimimos ahi)
+            document.getElementById('etiquetas-container').style.display = tabId === 'etiquetas' ? 'block' : 'none';
+            
+            // Foco al escaner
+            if(tabId === 'auditoria') {
+                setTimeout(() => document.getElementById('scannerInput').focus(), 100);
+            }
+        }
+
+        // 1. CARGA DE ARCHIVO
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('statusMessage').innerHTML = "<span class='text-blue-600'>Leyendo archivo...</span>";
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // Inicializar datos con campo de seguimiento
+                    inventarioData = results.data.map(row => ({
+                        ...row,
+                        _verificado: false, // Nuevo campo para auditoría
+                        _fechaVerificacion: null
+                    }));
+                    procesarDatos(inventarioData);
+                },
+                error: function(err) {
+                    document.getElementById('statusMessage').innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
+                }
+            });
+        });
+
+        // 2. PROCESAMIENTO INICIAL
+        function procesarDatos(data) {
+            totalItems = data.length;
+            verifiedItems = 0;
+            const rubrosSet = new Set();
+            
+            data.forEach(row => { if (row.RUBRO) rubrosSet.add(row.RUBRO.trim()); });
+            
+            // Llenar select de rubros
+            const rubrosArray = Array.from(rubrosSet).sort();
+            const select = document.getElementById('rubroSelect');
+            select.innerHTML = '<option value="TODOS">-- Todos los Rubros --</option>';
+            rubrosArray.forEach(rubro => {
+                const option = document.createElement('option');
+                option.value = rubro;
+                option.textContent = rubro;
+                select.appendChild(option);
+            });
+
+            // Habilitar controles UI
+            select.disabled = false; select.classList.remove('bg-gray-100'); select.classList.add('bg-white');
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('scannerInput').disabled = false;
+            document.getElementById('btnRegistrar').disabled = false;
+            document.getElementById('btnExportar').disabled = false;
+            
+            document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 font-bold">¡Cargado! ${totalItems} registros.</span>`;
+            
+            actualizarAuditoriaUI();
+        }
+
+        // 3. GENERAR ETIQUETAS (Ajustado para 10 por hoja)
+        document.getElementById('generateBtn').addEventListener('click', function() {
+            const selectedRubro = document.getElementById('rubroSelect').value;
+            const printArea = document.getElementById('print-area');
+            printArea.innerHTML = ''; 
+
+            let datosFiltrados = inventarioData;
+            if (selectedRubro !== "TODOS") {
+                datosFiltrados = inventarioData.filter(row => row.RUBRO && row.RUBRO.trim() === selectedRubro);
+            }
+
+            if (datosFiltrados.length === 0) return;
+
+            datosFiltrados.forEach((item, index) => {
+                const nis = item.NIS || 'S/N';
+                const desc = item.DESCRIPCION || 'N/A';
+                const marca = item.MARCA || 'N/A';
+                const modelo = item.MODELO || 'N/A';
+                const serie = item.SERIE || 'N/A';
+                const estado = item.ESTADOFISICO || 'N/A';
+                const rubro = item.RUBRO || 'N/A';
+
+                const labelHTML = `
+                    <div class="label-card">
+                        <div class="border-b border-gray-400 pb-[2px] mb-1 font-bold text-[10px] text-center uppercase tracking-wider">
+                            Esc. Roosevelt Ercé Barrón Pech
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-x-1 gap-y-[1px] mb-1 text-[9px] leading-tight flex-grow">
+                            <div class="col-span-2 text-[11px] font-extrabold text-gray-900 border-b border-gray-200 pb-[2px] mb-[2px]">NIS: ${nis}</div>
+                            <div class="col-span-2 line-clamp-2" title="${desc}"><b>Desc:</b> ${desc}</div>
+                            <div class="truncate"><b>Marca:</b> ${marca}</div>
+                            <div class="truncate"><b>Modelo:</b> ${modelo}</div>
+                            <div class="truncate"><b>Serie:</b> ${serie}</div>
+                            <div class="truncate"><b>Est:</b> ${estado}</div>
+                            <div class="col-span-2 truncate"><b>Rubro:</b> ${rubro}</div>
+                        </div>
+
+                        <div class="barcode-container flex justify-center mt-auto">
+                            <svg id="barcode-${index}"></svg>
+                        </div>
+                    </div>
+                `;
+                printArea.insertAdjacentHTML('beforeend', labelHTML);
+            });
+
+            // Generar códigos JsBarcode
+            datosFiltrados.forEach((item, index) => {
+                const nis = item.NIS || '';
+                if(nis && nis !== 'S/N') {
+                    try {
+                        JsBarcode(`#barcode-${index}`, nis, {
+                            format: "CODE128", lineColor: "#000", width: 1.2, height: 35, 
+                            displayValue: true, fontSize: 10, margin: 0
+                        });
+                    } catch (e) {}
+                }
+            });
+
+            document.getElementById('printBtn').disabled = false;
+        });
+
+        // 4. MÓDULO DE AUDITORÍA (ESCÁNER)
+        const scannerInput = document.getElementById('scannerInput');
+        
+        scannerInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                registrarEscaneo();
+            }
+        });
+
+        function registrarEscaneo() {
+            const nisBuscado = scannerInput.value.trim().toUpperCase();
+            if (!nisBuscado) return;
+
+            const index = inventarioData.findIndex(item => (item.NIS || "").toUpperCase() === nisBuscado);
+            const feedback = document.getElementById('scan-feedback');
+
+            if (index !== -1) {
+                if (!inventarioData[index]._verificado) {
+                    inventarioData[index]._verificado = true;
+                    inventarioData[index]._fechaVerificacion = new Date().toISOString();
+                    verifiedItems++;
+                    
+                    feedback.innerHTML = `<span class="text-green-600">✅ NIS ${nisBuscado} verificado correctamente.</span>`;
+                } else {
+                    feedback.innerHTML = `<span class="text-yellow-600">⚠️ NIS ${nisBuscado} ya estaba verificado.</span>`;
+                }
+            } else {
+                feedback.innerHTML = `<span class="text-red-600">❌ Error: NIS ${nisBuscado} no encontrado en la base de datos.</span>`;
+            }
+
+            scannerInput.value = '';
+            scannerInput.focus();
+            actualizarAuditoriaUI();
+        }
+
+        function actualizarAuditoriaUI() {
+            // Update stats
+            document.getElementById('stat-total').textContent = totalItems;
+            document.getElementById('stat-verified').textContent = verifiedItems;
+            
+            const pct = totalItems === 0 ? 0 : Math.round((verifiedItems / totalItems) * 100);
+            document.getElementById('stat-progress').textContent = `${pct}%`;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+
+            // Update table (show first 50 items, verified first, or latest)
+            const tbody = document.getElementById('auditTableBody');
+            tbody.innerHTML = '';
+            
+            // Ordenar: primero los verificados recientemente
+            const datosVisualizar = [...inventarioData].sort((a, b) => {
+                if(a._verificado === b._verificado) return 0;
+                return a._verificado ? -1 : 1;
+            }).slice(0, 100); // Mostrar maximo 100 para no bloquear la UI
+
+            datosVisualizar.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = item._verificado ? 'bg-green-50' : '';
+                const icon = item._verificado ? '<span class="text-green-600 font-bold">✅ Verificado</span>' : '<span class="text-gray-400">Pendiente</span>';
+                
+                tr.innerHTML = `
+                    <td class="py-2 px-4 border-b">${icon}</td>
+                    <td class="py-2 px-4 border-b font-mono text-xs">${item.NIS || 'S/N'}</td>
+                    <td class="py-2 px-4 border-b truncate max-w-xs">${item.DESCRIPCION || ''}</td>
+                    <td class="py-2 px-4 border-b truncate max-w-[100px] text-xs">${item.RUBRO || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 5. EXPORTAR A JSON
+        function exportarJSON() {
+            // Beautify JSON output
+            const dataStr = JSON.stringify(inventarioData, null, 2);
+            
+            // Create a blob and download link
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            // Fecha para el nombre del archivo
+            const fecha = new Date().toISOString().split('T')[0];
+            a.download = `Inventario_Avance_${fecha}.json`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+    </script>
+</body>
+</html>
