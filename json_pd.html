@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de JSON - Nueva Escuela Mexicana</title>
+    <title>Generador de JSON - NEM SKILL</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -27,7 +27,7 @@
 <body>
 
 <div class="container mt-4">
-    <h2 class="mb-4 text-primary border-bottom pb-2">Generador de Documentos NEM (JSON)</h2>
+    <h2 class="mb-4 text-primary border-bottom pb-2">Generador de JSON - NEM SKILL</h2>
 
     <div id="notificationBox" class="alert alert-success shadow-sm" role="alert">
         <span id="notificationMessage">Mensaje</span>
@@ -188,7 +188,7 @@
                         <div>
                             <label class="form-label">Objetivos de Desarrollo Sostenible (ODS)</label>
                             <div class="ods-grid" id="ods_container">
-                                <!-- ODS checkoxes injected via JS -->
+                                <!-- ODS checkboxes injected via JS -->
                             </div>
                         </div>
                     </div>
@@ -333,6 +333,21 @@
         "Cuaderno de clase", "Mapa conceptual", "Monografía", "Portafolio", "Examen"
     ];
 
+    // Diccionario de abreviaturas para las metodologías
+    const abreviaturasMetodologia = {
+        "Proyectos Comunitarios": "ABPC",
+        "Indagación STEAM": "STEAM",
+        "ABP": "ABP",
+        "Aprendizaje Servicio": "AS",
+        "Aprendizaje Cooperativo": "AC",
+        "Aprendizaje Situado": "ASit",
+        "Estudio de Casos": "EC",
+        "Aprendizaje Basado en el Juego": "ABJ",
+        "Talleres Críticos y Centros de Interés": "TCCI",
+        "Unidades Didácticas Integradoras": "UDI",
+        "Otra": "Otra"
+    };
+
     // Inicializar la Interfaz
     function initUI() {
         // Generar Checkboxes ODS
@@ -398,11 +413,11 @@
         if (disc === 'Tecnología') {
             divEnfasis.style.display = 'block';
             selectEnfasis.disabled = false;
-            if (!selectEnfasis.value) selectEnfasis.value = "Informática"; // Restaura si estaba vacío
+            if (!selectEnfasis.value) selectEnfasis.value = "Informática";
         } else {
             divEnfasis.style.display = 'none';
             selectEnfasis.disabled = true;
-            selectEnfasis.value = ""; // Reposa sobre la opción vacía oculta
+            selectEnfasis.value = "";
         }
     }
 
@@ -422,19 +437,27 @@
         return Array.from(nodes).map(n => isNumeric ? parseInt(n.value) : n.value);
     }
 
-    // Helper: Notificaciones visuales (reemplaza alert)
+    // Helper: Notificaciones visuales
     function showNotification(message, type = 'success') {
         const box = document.getElementById('notificationBox');
         const msgSpan = document.getElementById('notificationMessage');
         box.className = `alert alert-${type} shadow-sm`;
         msgSpan.innerText = message;
         box.style.display = 'block';
-        setTimeout(() => box.style.display = 'none', 3000);
+        setTimeout(() => box.style.display = 'none', 3500);
+    }
+
+    // Helper: Limpiar acentos y caracteres no válidos en nombres de archivo
+    function limpiarTextoArchivo(texto) {
+        if (!texto) return "SinDisciplina";
+        return texto
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Elimina tildes y diéresis
+            .replace(/[^a-zA-Z0-9]/g, "");   // Elimina espacios, barras (/) y símbolos
     }
 
     // Generador principal de JSON
     function generateJSON() {
-        // Parsear contenidos (ej. "1, 3, 5" -> [1,3,5])
         const strContenidos = document.getElementById('contenidos_seleccionados').value;
         const arrContenidos = strContenidos.split(',')
             .map(n => parseInt(n.trim()))
@@ -451,10 +474,9 @@
             document.getElementById('notificationBox').style.display = 'block';
         }
 
-        // Construir el objeto principal
         const finalObj = {
             "nem_input": {
-                "formato_salida":  document.getElementById('formato_salida').value,
+                "formato_salida": formatoSalida,
                 "documento": document.getElementById('documento').value,
                 "campo_formativo": camposFormativos,
                 "grado": document.getElementById('grado').value,
@@ -497,14 +519,12 @@
             }
         };
 
-        // Mostrar en la pantalla
         document.getElementById('jsonOutput').textContent = JSON.stringify(finalObj, null, 2);
     }
 
     // Funciones de Exportación
     function copyJSON() {
         const text = document.getElementById('jsonOutput').textContent;
-        // Método seguro para iframes / general
         const textArea = document.createElement("textarea");
         textArea.value = text;
         document.body.appendChild(textArea);
@@ -518,20 +538,54 @@
         document.body.removeChild(textArea);
     }
 
+    // Funciones de Descarga
     function downloadJSON() {
-        const text = document.getElementById('jsonOutput').textContent;
-        const blob = new Blob([text], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "NEM_Documento_" + Date.now() + ".json";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showNotification("Descarga iniciada.");
-    }
+            const text = document.getElementById('jsonOutput').textContent;
+            
+            // 1. Obtener y limpiar CCT
+            const rawCct = document.getElementById('esc_cct').value;
+            const cctLimpio = limpiarTextoArchivo(rawCct) || "SinCCT";
 
+            // 2. Obtener y limpiar Disciplina
+            const rawDisciplina = document.getElementById('disciplina').value;
+            const disciplinaLimpia = limpiarTextoArchivo(rawDisciplina);
+
+            // 3. Obtener y limpiar Grado (ej. "3er grado" -> "3erGrado" o puedes dejarlo en mayúsculas con .toUpperCase())
+            const rawGrado = document.getElementById('grado').value;
+            const gradoLimpio = limpiarTextoArchivo(rawGrado).toUpperCase();
+
+            // 4. Obtener Metodología abreviada
+            const rawMetodologia = document.getElementById('metodologia').value;
+            const metAbreviada = abreviaturasMetodologia[rawMetodologia] || limpiarTextoArchivo(rawMetodologia);
+
+            // 5. Formatear Fecha y Hora (DD-MM-AAAA-HH-MM)
+            const ahora = new Date();
+            const pad = (num) => String(num).padStart(2, '0');
+            
+            const dia = pad(ahora.getDate());
+            const mes = pad(ahora.getMonth() + 1);
+            const anio = ahora.getFullYear();
+            const horas = pad(ahora.getHours());
+            const minutos = pad(ahora.getMinutes());
+            
+            const fechaFormateada = `${dia}-${mes}-${anio}-${horas}-${minutos}`;
+
+            // 6. Construir nombre final y descargar
+            const nombreArchivo = `${cctLimpio}-${disciplinaLimpia}-${gradoLimpio}-${metAbreviada}-${fechaFormateada}.json`;
+
+            const blob = new Blob([text], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification(`Descargado: ${nombreArchivo}`);
+        }
+        
     // Funciones de Importación
     function handleImport(event) {
         const file = event.target.files[0];
@@ -552,15 +606,12 @@
             }
         };
         reader.readAsText(file);
-        // Reset input to allow loading the same file again
         event.target.value = '';
     }
 
     function populateForm(data) {
-        // Text / Selects
         const safeSetVal = (id, val) => { if(document.getElementById(id) && val !== undefined) document.getElementById(id).value = val; };
         
-        // Checkboxes helpers definidos al principio para usarlos secuencialmente
         const setCheckboxes = (selector, valuesArray) => {
             if(!valuesArray || !Array.isArray(valuesArray)) return;
             document.querySelectorAll(selector).forEach(chk => {
@@ -568,16 +619,14 @@
             });
         };
 
+        safeSetVal('formato_salida', data.formato_salida);
         safeSetVal('documento', data.documento);
         safeSetVal('grado', data.grado);
         
-        // Seteamos campos formativos
         setCheckboxes('.chk-campo', data.campo_formativo);
         
-        // Asignamos la disciplina importada
         safeSetVal('disciplina', data.disciplina);
         
-        // Re-evaluar énfasis
         toggleEnfasis();
         if(data.enfasis_tecnologia) safeSetVal('enfasis_tecnologia', data.enfasis_tecnologia);
 
@@ -591,14 +640,12 @@
         setCheckboxes('.chk-ejes', data.ejes_articuladores);
         setCheckboxes('.chk-ods', data.ods);
 
-        // Llenar Instrumentos de Evaluación
         if (data.evaluacion) {
             setCheckboxes('.chk-auto', data.evaluacion.autoevaluacion);
             setCheckboxes('.chk-coe', data.evaluacion.coevaluacion);
             setCheckboxes('.chk-hetero', data.evaluacion.heteroevaluacion);
         }
 
-        // Objetos anidados
         if (data.codiseno) {
             document.getElementById('codiseno_tiene').checked = data.codiseno.tiene || false;
             safeSetVal('codiseno_descripcion', data.codiseno.descripcion);
@@ -630,13 +677,11 @@
 
         safeSetVal('info_adicional', data.info_adicional);
 
-        // Regenerate JSON preview after populating
         generateJSON();
     }
 
     // Iniciar
     window.onload = initUI;
-
 </script>
 </body>
 </html>
