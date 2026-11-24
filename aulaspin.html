@@ -473,27 +473,26 @@
             'use strict';
 
             /* =====================================================================
-             * 1. UTILIDADES Y PALETA DE COLORES
+             * 1. UTILIDADES, PALETA Y DATOS INICIALES
              * ===================================================================== */
             const PALETTE = [
-                '#6366f1', '#ec4899', '#10b981', '#f59e0b', '#3b82f6',
-                '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
-                '#84cc16', '#d946ef', '#0ea5e9', '#e11d48', '#22c55e',
-                '#a855f7', '#eab308', '#2563eb'
+                '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
+                '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
+                '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'
             ];
+
+            function uid() {
+                return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+            }
 
             function getColorForIndex(idx) {
                 return PALETTE[idx % PALETTE.length];
             }
 
-            function uid() {
-                return 'id_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
-            }
-
-            function createStudent(name, idx = 0) {
+            function createStudent(name, idx) {
                 return {
                     id: uid(),
-                    name: String(name).trim(),
+                    name: name.trim(),
                     active: true,
                     wonCount: 0,
                     color: getColorForIndex(idx)
@@ -501,7 +500,7 @@
             }
 
             function getInitials(name) {
-                const parts = String(name).trim().split(/\s+/).filter(Boolean);
+                const parts = name.trim().split(/\s+/).filter(Boolean);
                 if (parts.length === 0) return '?';
                 if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
                 return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -517,7 +516,7 @@
             }
 
             /* =====================================================================
-             * 2. MOTOR DE AUDIO SINTETIZADO (WEB AUDIO API)
+             * 2. MOTOR DE AUDIO SINTETIZADO (WEB AUDIO API — SIN ARCHIVOS EXTERNOS)
              * ===================================================================== */
             const sound = {
                 ctx: null,
@@ -533,7 +532,7 @@
                     }
                 },
 
-                tone(freq, duration, type = 'sine', vol = 0.12, endFreq = null) {
+                tone(freq, duration = 0.08, type = 'sine', volume = 0.08, endFreq = null) {
                     if (this.muted) return;
                     this.init();
                     if (!this.ctx) return;
@@ -546,71 +545,92 @@
                         if (endFreq !== null) {
                             osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
                         }
-                        gain.gain.setValueAtTime(vol, now);
-                        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                        gain.gain.setValueAtTime(volume, now);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
                         osc.connect(gain);
                         gain.connect(this.ctx.destination);
                         osc.start(now);
                         osc.stop(now + duration);
-                    } catch (e) {}
+                    } catch (e) {
+                        // Ignorar errores de contexto de audio bloqueado
+                    }
                 },
 
-                playTick() { this.tone(680, 0.045, 'triangle', 0.11, 340); },
-                playBounce() { this.tone(420 + Math.random() * 260, 0.05, 'sine', 0.06, 220); },
-                playFlip() { this.tone(360, 0.11, 'sine', 0.12, 720); },
+                playTick() {
+                    this.tone(720, 0.03, 'triangle', 0.06, 360);
+                },
+
+                playBounce() {
+                    this.tone(420 + Math.random() * 280, 0.05, 'sine', 0.055, 220);
+                },
+
                 playGoal() {
-                    this.tone(587.33, 0.12, 'triangle', 0.14);
-                    setTimeout(() => this.tone(880, 0.18, 'triangle', 0.14), 85);
+                    this.tone(587.33, 0.12, 'triangle', 0.1, 880);
+                    setTimeout(() => this.tone(880, 0.18, 'triangle', 0.1, 1174.66), 70);
                 },
-                playTurbo() { this.tone(240, 0.22, 'sawtooth', 0.07, 920); },
-                playMeteor() { this.tone(180, 0.24, 'sawtooth', 0.14, 48); },
-                playLaser() { this.tone(1150, 0.2, 'square', 0.08, 190); },
+
+                playTurbo() {
+                    this.tone(280, 0.18, 'sawtooth', 0.05, 860);
+                },
+
+                playFlip() {
+                    this.tone(520, 0.09, 'sine', 0.07, 780);
+                },
+
+                playLaser() {
+                    this.tone(1100, 0.16, 'sawtooth', 0.06, 180);
+                },
+
+                playMeteor() {
+                    this.tone(170, 0.22, 'sawtooth', 0.09, 45);
+                },
+
                 playUfo() {
-                    this.tone(520, 0.18, 'sine', 0.09, 780);
-                    setTimeout(() => this.tone(780, 0.2, 'sine', 0.09, 440), 150);
+                    this.tone(520, 0.14, 'sine', 0.06, 760);
+                    setTimeout(() => this.tone(760, 0.14, 'sine', 0.06, 480), 120);
                 },
+
                 playWin() {
                     const notes = [523.25, 659.25, 783.99, 1046.5];
-                    notes.forEach((n, i) => {
-                        setTimeout(() => this.tone(n, 0.28, 'triangle', 0.15), i * 100);
+                    notes.forEach((n, idx) => {
+                        setTimeout(() => this.tone(n, 0.22, 'triangle', 0.11), idx * 95);
                     });
                 }
             };
 
             /* =====================================================================
-             * 3. ESTADO GLOBAL Y GRUPOS PRECARGADOS (36 ALUMNOS EN 1° A)
+             * 3. ESTADO GLOBAL DE LA APLICACIÓN
              * ===================================================================== */
-            const defaultStudents36 = [
+            const DEFAULT_STUDENTS_36 = [
                 'Sofía Martínez', 'Diego Hernández', 'Valentina López', 'Mateo García',
-                'Camila Rodríguez', 'Sebastián Pérez', 'Isabella Sánchez', 'Alejandro Ramírez',
-                'Lucía Torres', 'Daniel Flores', 'Regina Morales', 'Emiliano Castro',
-                'Mariana Ortiz', 'Leonardo Vargas', 'Renata Jiménez', 'Gabriel Mendoza',
-                'Ximena Ruiz', 'Nicolás Aguilar', 'Victoria Silva', 'Santiago Cruz',
-                'Andrea Herrera', 'Samuel Medina', 'Fernanda Ríos', 'David Navarro',
-                'Paula Delgado', 'Joaquín Romero', 'Natalia Vega', 'Bruno Castillo',
-                'Elena Domínguez', 'Tomás Guerrero', 'Abril Peña', 'Iker Campos',
-                'Julieta León', 'Gael Vázquez', 'Valeria Mendoza', 'Rodrigo Cortés'
+                'Camila Rodríguez', 'Sebastián Pérez', 'Isabella Sánchez', 'Santiago Ramírez',
+                'Renata Torres', 'Leonardo Flores', 'Ximena Rivera', 'Emiliano Gómez',
+                'Regina Díaz', 'Daniel Cruz', 'Victoria Morales', 'Alejandro Reyes',
+                'Mariana Ortiz', 'Nicolás Gutiérrez', 'Lucía Chávez', 'Gael Ramos',
+                'Paula Vargas', 'Iker Castillo', 'Natalia Jiménez', 'Bruno Mendoza',
+                'Andrea Ruiz', 'Thiago Aguilar', 'Fernanda Medina', 'Lucas Herrera',
+                'Valeria Castro', 'Dylan Romero', 'Elena Navarro', 'Gabriel Domínguez',
+                'Romina Vega', 'Ángel Rojas', 'Abril Silva', 'Julián Delgado'
             ];
 
-            const defaultGroup1 = {
-                id: 'grp_1a',
-                name: '1° A — Matemáticas (36)',
-                students: defaultStudents36.map((n, i) => createStudent(n, i))
-            };
-
-            const defaultGroup2 = {
-                id: 'grp_2b',
-                name: '2° B — Ciencias',
-                students: [
-                    'Ana Paula', 'Carlos Eduardo', 'Diana Laura', 'Erick Gael',
-                    'Fátima Reyes', 'Héctor Luna', 'Iván Paredes', 'Karla Méndez',
-                    'Luis Ángel', 'Mónica Salas', 'Óscar Núñez', 'Romina Paredes'
-                ].map((n, i) => createStudent(n, i))
-            };
-
             const state = {
-                groups: [defaultGroup1, defaultGroup2],
-                currentGroupId: defaultGroup1.id,
+                groups: [
+                    {
+                        id: 'g_1a',
+                        name: '1° A — Matemáticas (36)',
+                        students: DEFAULT_STUDENTS_36.map((n, i) => createStudent(n, i))
+                    },
+                    {
+                        id: 'g_2b',
+                        name: '2° B — Ciencias (12)',
+                        students: [
+                            'Ana Paula', 'Carlos Eduardo', 'Danna Paola', 'Erick Fabián',
+                            'Fátima Belén', 'Héctor Manuel', 'Ivanna Sofía', 'Jorge Luis',
+                            'Karla María', 'Luis Fernando', 'Mónica Andrea', 'Óscar Iván'
+                        ].map((n, i) => createStudent(n, i))
+                    }
+                ],
+                currentGroupId: 'g_1a',
                 mode: 'wheel',
                 winnerCount: 1,
                 noRepeat: true,
@@ -629,11 +649,11 @@
             }
 
             /* =====================================================================
-             * 4. REFERENCIAS DEL DOM
+             * 4. REFERENCIAS AL DOM Y TOASTS
              * ===================================================================== */
             const dom = {
-                confettiCanvas: document.getElementById('confettiCanvas'),
                 toastContainer: document.getElementById('toastContainer'),
+                confettiCanvas: document.getElementById('confettiCanvas'),
                 groupSelect: document.getElementById('groupSelect'),
                 btnOpenGroupModal: document.getElementById('btnOpenGroupModal'),
                 btnMute: document.getElementById('btnMute'),
@@ -654,8 +674,8 @@
                 emptyStageNotice: document.getElementById('emptyStageNotice'),
                 btnQuickRestore: document.getElementById('btnQuickRestore'),
                 btnDecWinners: document.getElementById('btnDecWinners'),
-                winnerCountDisplay: document.getElementById('winnerCountDisplay'),
                 btnIncWinners: document.getElementById('btnIncWinners'),
+                winnerCountDisplay: document.getElementById('winnerCountDisplay'),
                 toggleNoRepeat: document.getElementById('toggleNoRepeat'),
                 btnActionSecondary: document.getElementById('btnActionSecondary'),
                 btnStartGame: document.getElementById('btnStartGame'),
@@ -680,97 +700,110 @@
                 groupNameInput: document.getElementById('groupNameInput'),
                 btnNewGroup: document.getElementById('btnNewGroup'),
                 btnDeleteGroup: document.getElementById('btnDeleteGroup'),
-                bulkLineCount: document.getElementById('bulkLineCount'),
                 bulkStudentsTextarea: document.getElementById('bulkStudentsTextarea'),
+                bulkLineCount: document.getElementById('bulkLineCount'),
                 btnDownloadJson: document.getElementById('btnDownloadJson'),
                 inputImportJson: document.getElementById('inputImportJson'),
                 btnCancelGroupModal: document.getElementById('btnCancelGroupModal'),
                 btnSaveGroupModal: document.getElementById('btnSaveGroupModal')
             };
 
-            /* =====================================================================
-             * 5. NOTIFICACIONES TOAST Y CONFETI
-             * ===================================================================== */
             function showToast(message, type = 'info') {
-                const styles = {
-                    info: 'bg-slate-900 text-white border-slate-700',
+                const colors = {
+                    info: 'bg-slate-800 text-white border-slate-700',
                     success: 'bg-emerald-600 text-white border-emerald-500',
                     warning: 'bg-amber-500 text-slate-950 border-amber-400',
                     error: 'bg-rose-600 text-white border-rose-500'
                 };
-                const el = document.createElement('div');
-                el.className = `pointer-events-auto px-4 py-2.5 rounded-xl shadow-lg border text-sm font-semibold animate-pop ${styles[type] || styles.info}`;
-                el.textContent = message;
-                dom.toastContainer.appendChild(el);
+                const toast = document.createElement('div');
+                toast.className = `pointer-events-auto px-4 py-2.5 rounded-xl border shadow-lg text-sm font-semibold animate-pop ${colors[type] || colors.info}`;
+                toast.textContent = message;
+                dom.toastContainer.appendChild(toast);
                 setTimeout(() => {
-                    el.style.opacity = '0';
-                    el.style.transform = 'translateY(8px)';
-                    el.style.transition = 'all 0.25s ease';
-                    setTimeout(() => el.remove(), 260);
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(8px)';
+                    toast.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                    setTimeout(() => toast.remove(), 260);
                 }, 2600);
             }
 
+            /* =====================================================================
+             * 5. EFECTO DE CONFETI GLOBAL
+             * ===================================================================== */
             const confetti = {
+                ctx: dom.confettiCanvas.getContext('2d'),
                 pieces: [],
                 raf: null,
-                ctx: dom.confettiCanvas.getContext('2d'),
+
+                resize() {
+                    dom.confettiCanvas.width = window.innerWidth;
+                    dom.confettiCanvas.height = window.innerHeight;
+                },
 
                 launch() {
-                    const c = dom.confettiCanvas;
-                    c.width = window.innerWidth;
-                    c.height = window.innerHeight;
+                    this.resize();
                     this.pieces = [];
+                    const w = dom.confettiCanvas.width;
                     for (let i = 0; i < 120; i++) {
                         this.pieces.push({
-                            x: Math.random() * c.width,
-                            y: -20 - Math.random() * c.height * 0.4,
-                            w: 7 + Math.random() * 6,
-                            h: 4 + Math.random() * 4,
-                            vx: (Math.random() - 0.5) * 4,
-                            vy: 2.5 + Math.random() * 4.5,
+                            x: w * 0.5 + (Math.random() - 0.5) * w * 0.6,
+                            y: -15 - Math.random() * 80,
+                            vx: (Math.random() - 0.5) * 9,
+                            vy: 3 + Math.random() * 6,
+                            w: 6 + Math.random() * 6,
+                            h: 8 + Math.random() * 8,
                             rot: Math.random() * Math.PI * 2,
-                            vrot: (Math.random() - 0.5) * 0.22,
-                            color: getColorForIndex(i)
+                            vrot: (Math.random() - 0.5) * 0.25,
+                            color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+                            life: 1
                         });
                     }
                     if (this.raf) cancelAnimationFrame(this.raf);
-                    this.animate();
+                    this.loop();
                 },
 
-                animate() {
-                    const c = dom.confettiCanvas;
-                    this.ctx.clearRect(0, 0, c.width, c.height);
-                    let alive = 0;
+                loop() {
+                    const c = this.ctx;
+                    const w = dom.confettiCanvas.width;
+                    const h = dom.confettiCanvas.height;
+                    c.clearRect(0, 0, w, h);
+
+                    let alive = false;
                     for (const p of this.pieces) {
                         p.x += p.vx;
                         p.y += p.vy;
-                        p.vy += 0.06;
+                        p.vy += 0.14;
+                        p.vx *= 0.99;
                         p.rot += p.vrot;
-                        if (p.y < c.height + 30) {
-                            alive++;
-                            this.ctx.save();
-                            this.ctx.translate(p.x, p.y);
-                            this.ctx.rotate(p.rot);
-                            this.ctx.fillStyle = p.color;
-                            this.ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-                            this.ctx.restore();
+                        if (p.y > h * 0.8) p.life -= 0.03;
+
+                        if (p.life > 0 && p.y < h + 30) {
+                            alive = true;
+                            c.save();
+                            c.globalAlpha = Math.max(0, p.life);
+                            c.translate(p.x, p.y);
+                            c.rotate(p.rot);
+                            c.fillStyle = p.color;
+                            c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                            c.restore();
                         }
                     }
-                    if (alive > 0) {
-                        this.raf = requestAnimationFrame(() => this.animate());
+
+                    if (alive) {
+                        this.raf = requestAnimationFrame(() => this.loop());
                     } else {
-                        this.ctx.clearRect(0, 0, c.width, c.height);
+                        c.clearRect(0, 0, w, h);
                         this.raf = null;
                     }
                 }
             };
 
             /* =====================================================================
-             * 6. GESTIÓN RESPONSIVA DEL CANVAS
+             * 6. GESTIÓN RESPONSIVA DEL CANVAS PRINCIPAL
              * ===================================================================== */
             const ctx = dom.gameCanvas.getContext('2d');
-            let canvasW = 640;
-            let canvasH = 480;
+            let canvasW = 800;
+            let canvasH = 500;
             let activeRaf = null;
 
             function stopCurrentAnimation() {
@@ -778,24 +811,20 @@
                     cancelAnimationFrame(activeRaf);
                     activeRaf = null;
                 }
-                if (typeof WheelGame !== 'undefined' && WheelGame.nextSpinTimer) {
-                    clearTimeout(WheelGame.nextSpinTimer);
-                    WheelGame.nextSpinTimer = null;
-                }
-                if (typeof BoxesGame !== 'undefined') {
+                if (typeof BoxesGame !== 'undefined' && BoxesGame.clearTimers) {
                     BoxesGame.clearTimers();
                 }
             }
 
             function resizeCanvas() {
                 const rect = dom.stageContainer.getBoundingClientRect();
-                if (rect.width <= 0 || rect.height <= 0) return;
                 const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                canvasW = rect.width;
-                canvasH = rect.height;
+                canvasW = Math.max(300, Math.floor(rect.width));
+                canvasH = Math.max(320, Math.floor(rect.height));
                 dom.gameCanvas.width = Math.floor(canvasW * dpr);
                 dom.gameCanvas.height = Math.floor(canvasH * dpr);
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                confetti.resize();
 
                 if (!state.isRunning) {
                     renderIdleStage();
@@ -803,23 +832,27 @@
             }
 
             /* =====================================================================
-             * 7. MODO 1: RULETA CLÁSICA CON FRICCIÓN Y REBOTE DEL INDICADOR
+             * 7. MODO 1: RULETA CLÁSICA CON FÍSICA DE FRICCIÓN Y REBOTE
              * ===================================================================== */
             const WheelGame = {
                 pool: [],
                 winners: [],
                 targetCount: 1,
                 angle: 0,
-                velocity: 0,
-                lastSliceIdx: -1,
-                pointerKick: 0,
-                nextSpinTimer: null,
+                angularVel: 0,
+                lastSegmentIdx: -1,
+                pointerBounce: 0,
+                pauseTimer: null,
 
                 reset() {
+                    if (this.pauseTimer) {
+                        clearTimeout(this.pauseTimer);
+                        this.pauseTimer = null;
+                    }
                     this.pool = getActiveStudents();
                     this.winners = [];
-                    this.velocity = 0;
-                    this.pointerKick = 0;
+                    this.angularVel = 0;
+                    this.pointerBounce = 0;
                     this.draw();
                 },
 
@@ -828,65 +861,70 @@
                     if (active.length === 0) return;
                     this.pool = active.slice();
                     this.winners = [];
-                    this.targetCount = Math.min(state.winnerCount, this.pool.length);
+                    this.targetCount = Math.min(state.winnerCount, active.length);
                     state.isRunning = true;
                     updateControlsUI();
                     this.launchSpin();
                 },
 
                 launchSpin() {
-                    if (!state.isRunning || this.pool.length === 0) return;
-                    setStageBadge(`Girando ruleta (${this.winners.length + 1}/${this.targetCount})...`);
-                    this.velocity = 0.34 + Math.random() * 0.16;
-                    this.lastSliceIdx = this.getPointerSliceIndex();
+                    if (!state.isRunning || state.mode !== 'wheel') return;
+                    if (this.pool.length === 0 || this.winners.length >= this.targetCount) {
+                        finishRound(this.winners);
+                        return;
+                    }
+                    setStageBadge(`Girando por ganador ${this.winners.length + 1} de ${this.targetCount}...`);
+                    this.angularVel = 0.34 + Math.random() * 0.22;
+                    this.lastSegmentIdx = -1;
                     this.loop();
                 },
 
-                getPointerSliceIndex() {
+                getSegmentAtPointer() {
                     const n = this.pool.length;
                     if (n === 0) return -1;
                     const slice = (Math.PI * 2) / n;
-                    const pointerAngle = -Math.PI / 2;
-                    let rel = (pointerAngle - this.angle) % (Math.PI * 2);
-                    if (rel < 0) rel += Math.PI * 2;
-                    return Math.floor(rel / slice) % n;
+                    // El puntero está arriba (-Math.PI / 2)
+                    const norm = (((-Math.PI / 2 - this.angle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                    return Math.floor(norm / slice) % n;
                 },
 
                 loop() {
-                    this.angle += this.velocity;
-                    this.velocity *= 0.986;
-                    this.pointerKick *= 0.8;
+                    this.angle += this.angularVel;
+                    this.angularVel *= 0.986;
+                    if (this.pointerBounce > 0) this.pointerBounce = Math.max(0, this.pointerBounce - 0.12);
 
-                    const curIdx = this.getPointerSliceIndex();
-                    if (curIdx !== this.lastSliceIdx && curIdx >= 0) {
-                        this.lastSliceIdx = curIdx;
-                        this.pointerKick = Math.min(0.45, 0.14 + this.velocity * 0.9);
+                    const segIdx = this.getSegmentAtPointer();
+                    if (segIdx !== this.lastSegmentIdx && segIdx !== -1) {
+                        this.lastSegmentIdx = segIdx;
+                        this.pointerBounce = Math.min(1, 0.4 + this.angularVel * 2.5);
                         sound.playTick();
                     }
 
                     this.draw();
 
-                    if (this.velocity < 0.0022) {
-                        this.velocity = 0;
-                        const winIdx = this.getPointerSliceIndex();
-                        const winner = this.pool[winIdx];
-                        if (winner) {
-                            this.winners.push(winner);
+                    if (this.angularVel < 0.0022) {
+                        this.angularVel = 0;
+                        const winnerIdx = this.getSegmentAtPointer();
+                        const chosen = this.pool[winnerIdx];
+                        if (chosen) {
+                            this.winners.push(chosen);
                             sound.playGoal();
-                            setStageBadge(`¡Elegido ${this.winners.length}/${this.targetCount}: ${winner.name}!`);
+                            setStageBadge(`¡Elegido #${this.winners.length}: ${chosen.name}!`);
                             if (this.winners.length >= this.targetCount) {
-                                this.nextSpinTimer = setTimeout(() => finishRound(this.winners), 650);
-                                return;
-                            } else {
-                                this.pool.splice(winIdx, 1);
-                                this.nextSpinTimer = setTimeout(() => {
+                                this.pauseTimer = setTimeout(() => {
                                     if (state.isRunning && state.mode === 'wheel') {
-                                        this.launchSpin();
+                                        finishRound(this.winners);
                                     }
-                                }, 950);
-                                return;
+                                }, 650);
+                            } else {
+                                // Retirar de la ruleta para el siguiente giro de la misma ronda
+                                this.pool.splice(winnerIdx, 1);
+                                this.pauseTimer = setTimeout(() => this.launchSpin(), 900);
                             }
+                        } else {
+                            finishRound(this.winners);
                         }
+                        return;
                     }
 
                     if (state.isRunning && state.mode === 'wheel') {
@@ -900,98 +938,92 @@
                     if (n === 0) return;
 
                     const cx = canvasW / 2;
-                    const cy = canvasH / 2 + 6;
-                    const radius = Math.max(80, Math.min(canvasW, canvasH) * 0.43);
+                    const cy = canvasH / 2 + 12;
+                    const radius = Math.min(canvasW, canvasH) * 0.41;
                     const slice = (Math.PI * 2) / n;
 
-                    // Aro exterior con sombra
+                    // Sombra exterior de la ruleta
                     ctx.save();
                     ctx.beginPath();
-                    ctx.arc(cx, cy, radius + 10, 0, Math.PI * 2);
-                    ctx.fillStyle = '#0f172a';
-                    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-                    ctx.shadowBlur = 18;
+                    ctx.arc(cx, cy, radius + 12, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
                     ctx.fill();
-                    ctx.lineWidth = 4;
-                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 6;
+                    ctx.strokeStyle = '#334155';
                     ctx.stroke();
                     ctx.restore();
 
-                    // Rebanadas
+                    // Sectores de alumnos
                     for (let i = 0; i < n; i++) {
-                        const start = this.angle + i * slice;
-                        const end = start + slice;
+                        const startA = this.angle + i * slice;
+                        const endA = startA + slice;
                         const student = this.pool[i];
 
+                        ctx.save();
                         ctx.beginPath();
                         ctx.moveTo(cx, cy);
-                        ctx.arc(cx, cy, radius, start, end);
+                        ctx.arc(cx, cy, radius, startA, endA);
                         ctx.closePath();
                         ctx.fillStyle = student.color;
                         ctx.fill();
                         ctx.lineWidth = n > 24 ? 1 : 2;
-                        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
                         ctx.stroke();
 
-                        // Etiqueta radial
-                        ctx.save();
+                        // Nombre del alumno radial
                         ctx.translate(cx, cy);
-                        ctx.rotate(start + slice / 2);
+                        ctx.rotate(startA + slice / 2);
                         ctx.textAlign = 'right';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = '#ffffff';
-                        const fontSize = n > 28 ? 10 : n > 18 ? 11.5 : 13.5;
+                        const fontSize = n > 30 ? 10 : n > 20 ? 11.5 : n > 12 ? 13 : 15;
                         ctx.font = `700 ${fontSize}px Inter, sans-serif`;
-                        ctx.shadowColor = 'rgba(0,0,0,0.75)';
+                        ctx.shadowColor = 'rgba(0,0,0,0.65)';
                         ctx.shadowBlur = 3;
-                        const maxChars = n > 24 ? 13 : 17;
-                        const label = student.name.length > maxChars
-                            ? student.name.slice(0, maxChars - 1) + '…'
-                            : student.name;
+                        const maxChars = n > 26 ? 13 : 18;
+                        const label = student.name.length > maxChars ? student.name.slice(0, maxChars - 1) + '…' : student.name;
                         ctx.fillText(label, radius - 14, 0);
                         ctx.restore();
                     }
 
-                    // Pines en el borde
+                    // Pines dorados en el borde
                     for (let i = 0; i < n; i++) {
                         const a = this.angle + i * slice;
-                        const px = cx + Math.cos(a) * (radius + 2);
-                        const py = cy + Math.sin(a) * (radius + 2);
+                        const px = cx + Math.cos(a) * (radius + 3);
+                        const py = cy + Math.sin(a) * (radius + 3);
                         ctx.beginPath();
                         ctx.arc(px, py, n > 28 ? 2.5 : 3.5, 0, Math.PI * 2);
-                        ctx.fillStyle = '#f8fafc';
+                        ctx.fillStyle = '#facc15';
                         ctx.fill();
                     }
 
                     // Centro de la ruleta
                     ctx.beginPath();
                     ctx.arc(cx, cy, Math.max(20, radius * 0.14), 0, Math.PI * 2);
-                    ctx.fillStyle = '#ffffff';
+                    ctx.fillStyle = '#0f172a';
                     ctx.fill();
                     ctx.lineWidth = 4;
-                    ctx.strokeStyle = '#312e81';
+                    ctx.strokeStyle = '#ffffff';
                     ctx.stroke();
 
-                    ctx.fillStyle = '#4f46e5';
-                    ctx.font = '700 13px Fredoka, sans-serif';
+                    ctx.fillStyle = '#facc15';
+                    ctx.font = '700 14px Fredoka, Inter, sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('SPIN', cx, cy + 0.5);
+                    ctx.fillText('★', cx, cy + 1);
 
-                    // Indicador superior con animación de rebote
+                    // Puntero superior con rebote
                     ctx.save();
-                    ctx.translate(cx, cy - radius - 12);
-                    ctx.rotate(-this.pointerKick);
+                    ctx.translate(cx, cy - radius - 10);
+                    ctx.rotate(-this.pointerBounce * 0.35);
                     ctx.beginPath();
                     ctx.moveTo(0, 26);
-                    ctx.lineTo(-14, -4);
-                    ctx.lineTo(14, -4);
+                    ctx.lineTo(-14, -6);
+                    ctx.lineTo(14, -6);
                     ctx.closePath();
                     ctx.fillStyle = '#facc15';
-                    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-                    ctx.shadowBlur = 6;
                     ctx.fill();
-                    ctx.lineWidth = 2.5;
+                    ctx.lineWidth = 3;
                     ctx.strokeStyle = '#ffffff';
                     ctx.stroke();
                     ctx.restore();
@@ -999,22 +1031,42 @@
             };
 
             /* =====================================================================
-             * 8. MODO 2: CARRERA DE CANICAS (EMBUDO TURBO, BIFURCACIONES Y COMPUERTAS)
+             * 8. MODO 2: CARRERA DE CANICAS (PINBALL INFERNAL: CAOS, COMBOS Y MOLINOS MÓVILES)
              * ===================================================================== */
             const MarblesGame = {
-                worldHeight: 3860,
+                worldHeight: 4020,
                 cameraY: 0,
                 pegs: [],
                 ramps: [],
                 gates: [],
                 bumpers: [],
                 spinners: [],
+                wallKickers: [],
+                particles: [],
                 marbles: [],
                 winners: [],
                 targetCount: 1,
                 time: 0,
+                elapsedSec: 0,
                 lastFrameTime: 0,
-                finishY: 3760,
+                finishY: 3905,
+
+                spawnSparks(x, y, color, count = 8, speed = 4.8) {
+                    if (this.particles.length > 180) return;
+                    for (let i = 0; i < count; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const sp = (0.35 + Math.random()) * speed;
+                        this.particles.push({
+                            x,
+                            y,
+                            vx: Math.cos(a) * sp,
+                            vy: Math.sin(a) * sp,
+                            r: 1.8 + Math.random() * 2.6,
+                            color,
+                            life: 1
+                        });
+                    }
+                },
 
                 buildBoard() {
                     this.pegs = [];
@@ -1022,241 +1074,402 @@
                     this.gates = [];
                     this.bumpers = [];
                     this.spinners = [];
-                    this.finishY = this.worldHeight - 100;
+                    this.wallKickers = [];
+                    this.particles = [];
+                    this.finishY = this.worldHeight - 115;
 
                     const wallLeft = 18;
                     const wallRight = canvasW - 34; // Espacio para el minimapa derecho
                     const usableW = wallRight - wallLeft;
                     const midX = wallLeft + usableW * 0.5;
-                    const padX = Math.max(30, usableW * 0.07);
 
-                    const addPegGrid = (startY, rows, cols, spacingY, minX = wallLeft + padX, maxX = wallRight - padX) => {
-                        const span = Math.max(40, maxX - minX);
-                        const spacingX = span / Math.max(1, cols - 1);
-                        for (let r = 0; r < rows; r++) {
-                            const isOffset = r % 2 === 1;
-                            const count = isOffset ? Math.max(1, cols - 1) : cols;
-                            for (let c = 0; c < count; c++) {
-                                const x = minX + c * spacingX + (isOffset && cols > 1 ? spacingX / 2 : 0);
-                                const y = startY + r * spacingY;
-                                this.pegs.push({ x, y, r: 4.8, glow: 0 });
-                            }
-                        }
+                    // Helper para crear molinos (fijos o móviles en X / Y)
+                    const addSpinner = (cfg) => {
+                        this.spinners.push({
+                            baseX: cfg.x,
+                            baseY: cfg.y,
+                            x: cfg.x,
+                            y: cfg.y,
+                            vx: 0,
+                            vy: 0,
+                            armLen: cfg.armLen,
+                            blades: cfg.blades || 4,
+                            angle: cfg.angle || 0,
+                            omega: cfg.omega,
+                            color: cfg.color || '#22d3ee',
+                            turbo: !!cfg.turbo,
+                            ampX: cfg.ampX || 0,
+                            ampY: cfg.ampY || 0,
+                            moveSpeedX: cfg.moveSpeedX || 0,
+                            moveSpeedY: cfg.moveSpeedY || 0,
+                            phaseX: cfg.phaseX || 0,
+                            phaseY: cfg.phaseY || 0,
+                            hitFlash: 0
+                        });
                     };
 
-                    const baseCols = Math.max(7, Math.min(12, Math.floor(usableW / 54)));
-                    const armBase = Math.max(38, Math.min(68, usableW * 0.125));
-                    const funnelNeckHalf = Math.max(34, usableW * 0.075);
+                    // Helper para bumpers explosivos de pinball
+                    const addBumper = (x, y, r = 17, color = '#ec4899', amp = 0, phase = 0, moveSpeed = 1.4) => {
+                        this.bumpers.push({
+                            baseX: x,
+                            x,
+                            y,
+                            r,
+                            color,
+                            amp,
+                            phase,
+                            moveSpeed,
+                            hitFlash: 0
+                        });
+                    };
+
+                    // Helper para rampas normales o "slingshots" elásticos que disparan canicas
+                    const addRamp = (x1, y1, x2, y2, kicker = false, color = null) => {
+                        this.ramps.push({
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            kicker,
+                            color: color || (kicker ? '#f43f5e' : '#38bdf8'),
+                            flash: 0
+                        });
+                    };
+
+                    // Paredes laterales con zonas impulsoras (kickers) a lo largo de todo el circuito
+                    const kickerBands = [
+                        [320, 620], [740, 1240], [1560, 1920],
+                        [2020, 2640], [2760, 3260], [3400, 3820]
+                    ];
+                    for (const [y1, y2] of kickerBands) {
+                        this.wallKickers.push(
+                            { side: 'left', y1, y2, flash: 0 },
+                            { side: 'right', y1, y2, flash: 0 }
+                        );
+                    }
 
                     // =================================================================
-                    // ZONA 1: EMBUDO DE ENTRADA + MOLINO SÚPER RÁPIDO A SU SALIDA
+                    // ZONA 1: LA LICUADORA INICIAL — EMBUDO + ENGRANAJE DE 3 MOLINOS
                     // =================================================================
-                    this.ramps.push(
-                        { x1: wallLeft + 2, y1: 145, x2: midX - funnelNeckHalf, y2: 285 },
-                        { x1: wallRight - 2, y1: 145, x2: midX + funnelNeckHalf, y2: 285 }
-                    );
-                    // Molino súper rápido justo debajo de la boca del embudo
-                    this.spinners.push(
-                        { x: midX, y: 365, armLen: armBase * 1.12, blades: 4, angle: 0, omega: 0.145, color: '#22d3ee', turbo: true }
-                    );
-                    // Deflectores laterales que reciben el disparo del molino
-                    this.pegs.push(
-                        { x: wallLeft + usableW * 0.18, y: 420, r: 7, glow: 0 },
-                        { x: wallLeft + usableW * 0.82, y: 420, r: 7, glow: 0 }
-                    );
-                    this.spinners.push(
-                        { x: wallLeft + usableW * 0.24, y: 495, armLen: armBase * 0.82, blades: 3, angle: 0.4, omega: -0.098, color: '#f59e0b' },
-                        { x: wallLeft + usableW * 0.76, y: 495, armLen: armBase * 0.82, blades: 3, angle: 1.1, omega: 0.098, color: '#ec4899' }
-                    );
+                    const neckHalf = Math.max(40, usableW * 0.09);
+                    addRamp(wallLeft + 2, 130, midX - neckHalf, 255, false);
+                    addRamp(wallRight - 2, 130, midX + neckHalf, 255, false);
+
+                    // Molino central enorme y súper rápido justo a la salida del embudo
+                    const z1CenterArm = Math.min(usableW * 0.21, 118);
+                    const z1SideArm = Math.min(usableW * 0.19, 105);
+                    addSpinner({ x: midX, y: 345, armLen: z1CenterArm, blades: 4, omega: 0.175, color: '#22d3ee', turbo: true });
+                    // Dos molinos laterales contrarrotatorios que reciben el disparo y hacen COMBO
+                    addSpinner({ x: wallLeft + usableW * 0.21, y: 455, armLen: z1SideArm, blades: 4, angle: 0.4, omega: -0.155, color: '#f59e0b', turbo: true });
+                    addSpinner({ x: wallLeft + usableW * 0.79, y: 455, armLen: z1SideArm, blades: 4, angle: 1.1, omega: 0.155, color: '#ec4899', turbo: true });
+
+                    // Slingshots elásticos inferiores que devuelven canicas hacia arriba a los molinos
+                    addRamp(wallLeft + 4, 540, wallLeft + usableW * 0.30, 625, true, '#fb7185');
+                    addRamp(wallRight - 4, 540, wallLeft + usableW * 0.70, 625, true, '#fb7185');
+                    addBumper(midX, 555, 19, '#a855f7');
 
                     // =================================================================
-                    // ZONA 2: BIFURCACIÓN EN 2 RUTAS (IZQ: MOLINOS / DER: ZIG-ZAG + COMPUERTA)
+                    // ZONA 2: ENGRANAJE DE COMBOS (COBERTURA TOTAL) + MOLINO PATRULLA
                     // =================================================================
-                    // Cuña divisoria superior y muro central
-                    this.ramps.push(
-                        { x1: midX, y1: 575, x2: midX - 28, y2: 635 },
-                        { x1: midX, y1: 575, x2: midX + 28, y2: 635 },
-                        { x1: midX, y1: 635, x2: midX, y2: 1215 }
-                    );
+                    // Tres molinos alineados cubriendo todo el ancho: imposible bajar sin recibir golpe
+                    const gearArm = Math.max(48, Math.min(usableW * 0.175, 102));
+                    addSpinner({ x: wallLeft + usableW * 0.18, y: 760, armLen: gearArm, blades: 4, angle: 0.0, omega: 0.145, color: '#a855f7' });
+                    addSpinner({ x: midX, y: 760, armLen: gearArm * 1.05, blades: 4, angle: 0.8, omega: -0.165, color: '#10b981', turbo: true });
+                    addSpinner({ x: wallLeft + usableW * 0.82, y: 760, armLen: gearArm, blades: 4, angle: 0.3, omega: 0.145, color: '#a855f7' });
 
-                    // Ruta Izquierda: Molinos rápidos alternados
-                    const leftMid = wallLeft + usableW * 0.25;
-                    this.spinners.push(
-                        { x: leftMid, y: 740, armLen: Math.min(armBase * 0.9, usableW * 0.17), blades: 4, angle: 0.2, omega: 0.105, color: '#a855f7' },
-                        { x: leftMid, y: 925, armLen: Math.min(armBase * 0.9, usableW * 0.17), blades: 3, angle: 0.9, omega: -0.112, color: '#10b981' },
-                        { x: leftMid, y: 1105, armLen: Math.min(armBase * 0.88, usableW * 0.16), blades: 4, angle: 0.5, omega: 0.108, color: '#f43f5e' }
-                    );
-                    addPegGrid(825, 2, 4, 185, wallLeft + 26, midX - 24);
-
-                    // Ruta Derecha: Rampas en zig-zag + pared temporal (compuerta móvil)
-                    const rightSpan = wallRight - midX;
-                    this.ramps.push(
-                        { x1: midX + 6, y1: 695, x2: wallRight - rightSpan * 0.28, y2: 770 },
-                        { x1: wallRight - 4, y1: 830, x2: midX + rightSpan * 0.26, y2: 905 },
-                        { x1: midX + 6, y1: 1035, x2: wallRight - rightSpan * 0.26, y2: 1110 }
-                    );
-                    // Compuerta corrediza que atora brevemente en la ruta derecha
-                    this.gates.push({
-                        baseX: midX + rightSpan * 0.36,
+                    // Molino móvil patrullando de lado a lado barriendo todo el ancho
+                    addSpinner({
+                        x: midX,
                         y: 965,
-                        w: rightSpan * 0.56,
-                        slideAmp: rightSpan * 0.36,
-                        phase: 0,
-                        speed: 1.35,
+                        armLen: Math.min(usableW * 0.17, 92),
+                        blades: 4,
+                        omega: -0.17,
+                        color: '#facc15',
+                        turbo: true,
+                        ampX: usableW * 0.31,
+                        moveSpeedX: 1.75,
+                        phaseX: 0
+                    });
+
+                    // Diamante de Pop Bumpers de pinball (rebotes en cadena)
+                    addBumper(wallLeft + usableW * 0.24, 1110, 18, '#ec4899');
+                    addBumper(midX, 1085, 20, '#38bdf8');
+                    addBumper(wallLeft + usableW * 0.76, 1110, 18, '#ec4899');
+                    addBumper(wallLeft + usableW * 0.37, 1215, 17, '#f59e0b');
+                    addBumper(wallLeft + usableW * 0.63, 1215, 17, '#f59e0b');
+
+                    // =================================================================
+                    // ZONA 3: REAGRUPADOR ANTI-LÍDER (COMPUERTAS + MOLINO VERTICAL)
+                    // =================================================================
+                    addRamp(wallLeft + 4, 1300, midX - usableW * 0.17, 1435, false);
+                    addRamp(wallRight - 4, 1300, midX + usableW * 0.17, 1435, false);
+
+                    // Compuertas corredizas que cierran y abren empujando a los punteros para que el pelotón los alcance
+                    this.gates.push(
+                        {
+                            baseX: midX - usableW * 0.17,
+                            baseY: 1460,
+                            y: 1460,
+                            w: usableW * 0.26,
+                            slideAmpX: usableW * 0.15,
+                            slideAmpY: 0,
+                            phase: 0.2,
+                            speed: 1.75,
+                            x1: 0,
+                            x2: 0,
+                            vx: 0,
+                            vy: 0,
+                            color: '#f43f5e'
+                        },
+                        {
+                            baseX: midX + usableW * 0.17,
+                            baseY: 1460,
+                            y: 1460,
+                            w: usableW * 0.26,
+                            slideAmpX: usableW * 0.15,
+                            slideAmpY: 0,
+                            phase: 0.2 + Math.PI,
+                            speed: 1.75,
+                            x1: 0,
+                            x2: 0,
+                            vx: 0,
+                            vy: 0,
+                            color: '#f43f5e'
+                        }
+                    );
+
+                    // Molino oscilante VERTICAL (sube y baja pateando canicas de regreso hacia arriba)
+                    addSpinner({
+                        x: midX,
+                        y: 1625,
+                        armLen: Math.min(usableW * 0.20, 108),
+                        blades: 4,
+                        omega: 0.18,
+                        color: '#22d3ee',
+                        turbo: true,
+                        ampY: 62,
+                        moveSpeedY: 2.0,
+                        phaseY: 0
+                    });
+
+                    // Cuña slingshot explosiva que dispara a los costados hacia las paredes impulsoras
+                    addRamp(midX, 1775, midX - usableW * 0.20, 1875, true, '#f97316');
+                    addRamp(midX, 1775, midX + usableW * 0.20, 1875, true, '#f97316');
+                    addBumper(wallLeft + usableW * 0.16, 1845, 16, '#a855f7');
+                    addBumper(wallLeft + usableW * 0.84, 1845, 16, '#a855f7');
+
+                    // =================================================================
+                    // ZONA 4: PINBALL INFERNAL — BUMPERS + MOLINOS MÓVILES CRUZADOS
+                    // =================================================================
+                    // Dos molinos móviles horizontales en fases opuestas (se cruzan y crean caos)
+                    addSpinner({
+                        x: midX,
+                        y: 2050,
+                        armLen: Math.min(usableW * 0.16, 86),
+                        blades: 4,
+                        omega: 0.165,
+                        color: '#ec4899',
+                        turbo: true,
+                        ampX: usableW * 0.30,
+                        moveSpeedX: 1.9,
+                        phaseX: 0
+                    });
+                    addSpinner({
+                        x: midX,
+                        y: 2225,
+                        armLen: Math.min(usableW * 0.16, 86),
+                        blades: 4,
+                        omega: -0.165,
+                        color: '#38bdf8',
+                        turbo: true,
+                        ampX: usableW * 0.30,
+                        moveSpeedX: 1.9,
+                        phaseX: Math.PI
+                    });
+
+                    // Campo denso de Pop Bumpers estilo máquina de pinball
+                    addBumper(wallLeft + usableW * 0.20, 2140, 16, '#facc15');
+                    addBumper(wallLeft + usableW * 0.80, 2140, 16, '#facc15');
+                    addBumper(wallLeft + usableW * 0.28, 2365, 19, '#f43f5e');
+                    addBumper(midX, 2415, 21, '#22d3ee', usableW * 0.16, 0, 1.8);
+                    addBumper(wallLeft + usableW * 0.72, 2365, 19, '#f43f5e');
+                    addBumper(wallLeft + usableW * 0.18, 2530, 18, '#a855f7');
+                    addBumper(wallLeft + usableW * 0.50, 2570, 18, '#10b981');
+                    addBumper(wallLeft + usableW * 0.82, 2530, 18, '#a855f7');
+
+                    // Slingshots laterales en el fondo de Zona 4
+                    addRamp(wallLeft + 4, 2595, wallLeft + usableW * 0.26, 2675, true, '#facc15');
+                    addRamp(wallRight - 4, 2595, wallLeft + usableW * 0.74, 2675, true, '#facc15');
+
+                    // =================================================================
+                    // ZONA 5: CÁMARAS GEMELAS CON MOLINOS EN ÓRBITA Y PISTÓN EMPUJADOR
+                    // =================================================================
+                    // Muro divisor central parcial con slingshots en sus caras
+                    addRamp(midX, 2765, midX, 3155, false, '#6366f1');
+
+                    // Lado Izquierdo: Molino vertical + molino fijo en combo
+                    const chamberArm = Math.max(42, Math.min(usableW * 0.155, 84));
+                    addSpinner({
+                        x: wallLeft + usableW * 0.25,
+                        y: 2890,
+                        armLen: chamberArm,
+                        blades: 4,
+                        omega: 0.16,
+                        color: '#f97316',
+                        ampY: 55,
+                        moveSpeedY: 2.1,
+                        phaseY: 0
+                    });
+                    addSpinner({
+                        x: wallLeft + usableW * 0.25,
+                        y: 3090,
+                        armLen: chamberArm,
+                        blades: 3,
+                        omega: -0.17,
+                        color: '#eab308',
+                        turbo: true
+                    });
+
+                    // Lado Derecho: Molino vertical opuesto + pistón horizontal empujador
+                    addSpinner({
+                        x: wallLeft + usableW * 0.75,
+                        y: 2890,
+                        armLen: chamberArm,
+                        blades: 4,
+                        omega: -0.16,
+                        color: '#10b981',
+                        ampY: 55,
+                        moveSpeedY: 2.1,
+                        phaseY: Math.PI
+                    });
+                    addBumper(wallLeft + usableW * 0.75, 3055, 19, '#ec4899');
+                    this.gates.push({
+                        baseX: wallLeft + usableW * 0.75,
+                        baseY: 3155,
+                        y: 3155,
+                        w: usableW * 0.26,
+                        slideAmpX: usableW * 0.12,
+                        slideAmpY: 0,
+                        phase: 0.8,
+                        speed: 2.0,
                         x1: 0,
                         x2: 0,
+                        vx: 0,
+                        vy: 0,
                         color: '#fb923c'
                     });
-                    addPegGrid(1145, 1, 4, 50, midX + 24, wallRight - 24);
 
-                    // =================================================================
-                    // ZONA 3: CUELLO DE BOTELLA CON COMPUERTAS DE RETENCIÓN TEMPORAL
-                    // =================================================================
-                    this.ramps.push(
-                        { x1: wallLeft + 4, y1: 1270, x2: midX - usableW * 0.14, y2: 1385 },
-                        { x1: wallRight - 4, y1: 1270, x2: midX + usableW * 0.14, y2: 1385 }
-                    );
-                    // Dos compuertas opuestas que cierran el paso y liberan oleadas
-                    this.gates.push(
-                        {
-                            baseX: midX - usableW * 0.16,
-                            y: 1410,
-                            w: usableW * 0.24,
-                            slideAmp: usableW * 0.16,
-                            phase: 0.4,
-                            speed: 1.5,
-                            x1: 0,
-                            x2: 0,
-                            color: '#f43f5e'
-                        },
-                        {
-                            baseX: midX + usableW * 0.16,
-                            y: 1410,
-                            w: usableW * 0.24,
-                            slideAmp: usableW * 0.16,
-                            phase: 0.4 + Math.PI,
-                            speed: 1.5,
-                            x1: 0,
-                            x2: 0,
-                            color: '#f43f5e'
-                        }
-                    );
-                    // Turbina rápida debajo de las compuertas
-                    this.spinners.push(
-                        { x: midX, y: 1545, armLen: armBase * 1.15, blades: 4, angle: 0.3, omega: -0.125, color: '#38bdf8', turbo: true }
-                    );
-                    addPegGrid(1650, 2, baseCols, 58);
-
-                    // =================================================================
-                    // ZONA 4: TRIPLE BIFURCACIÓN (3 CANALES PARALELOS CON OBSTÁCULOS)
-                    // =================================================================
-                    const div1 = wallLeft + usableW * 0.333;
-                    const div2 = wallLeft + usableW * 0.666;
-                    const colW = usableW * 0.333;
-
-                    // Cuñas y muros divisores de los 3 carriles
-                    [div1, div2].forEach(dx => {
-                        this.ramps.push(
-                            { x1: dx, y1: 1795, x2: dx - 20, y2: 1845 },
-                            { x1: dx, y1: 1795, x2: dx + 20, y2: 1845 },
-                            { x1: dx, y1: 1845, x2: dx, y2: 2430 }
-                        );
-                    });
-
-                    // Canal 1 (Izquierdo): Dos molinos muy rápidos
-                    this.spinners.push(
-                        { x: wallLeft + colW * 0.5, y: 1990, armLen: Math.min(armBase * 0.72, colW * 0.38), blades: 4, angle: 0.1, omega: 0.118, color: '#eab308' },
-                        { x: wallLeft + colW * 0.5, y: 2245, armLen: Math.min(armBase * 0.72, colW * 0.38), blades: 3, angle: 1.2, omega: -0.122, color: '#06b6d4' }
-                    );
-
-                    // Canal 2 (Central): Compuerta de retención + deflectores móviles
+                    // Pistón vertical/horizontal central debajo del muro que rebota a las canicas
                     this.gates.push({
                         baseX: midX,
-                        y: 2045,
-                        w: colW * 0.64,
-                        slideAmp: colW * 0.32,
-                        phase: 1.2,
-                        speed: 1.45,
+                        baseY: 3270,
+                        y: 3270,
+                        w: usableW * 0.36,
+                        slideAmpX: usableW * 0.24,
+                        slideAmpY: 28,
+                        phase: 0,
+                        speed: 2.15,
                         x1: 0,
                         x2: 0,
-                        color: '#facc15'
+                        vx: 0,
+                        vy: 0,
+                        color: '#38bdf8'
                     });
-                    this.bumpers.push(
-                        { baseX: midX, x: midX, y: 2195, r: 13, phase: 0, amp: colW * 0.25 },
-                        { baseX: midX, x: midX, y: 2335, r: 13, phase: Math.PI, amp: colW * 0.25 }
-                    );
-
-                    // Canal 3 (Derecho): Clavijas densas + molino rápido
-                    addPegGrid(1910, 4, 3, 62, div2 + 22, wallRight - 22);
-                    this.spinners.push(
-                        { x: div2 + colW * 0.5, y: 2275, armLen: Math.min(armBase * 0.72, colW * 0.38), blades: 4, angle: 0.7, omega: -0.115, color: '#f97316' }
-                    );
 
                     // =================================================================
-                    // ZONA 5: LABERINTO DE RETENCIÓN CON REBOTES Y MOLINOS RÁPIDOS
+                    // ZONA 6: RECTA FINAL INFERNAL — NADA ESTÁ DECIDIDO HASTA LA META
                     // =================================================================
-                    this.ramps.push(
-                        { x1: wallLeft + 4, y1: 2525, x2: wallLeft + usableW * 0.64, y2: 2625 },
-                        { x1: wallRight - 4, y1: 2745, x2: wallLeft + usableW * 0.36, y2: 2845 },
-                        { x1: wallLeft + 4, y1: 2980, x2: wallLeft + usableW * 0.58, y2: 3075 }
-                    );
-                    // Compuertas que tapan temporalmente las salidas de las rampas
-                    this.gates.push(
-                        {
-                            baseX: wallLeft + usableW * 0.78,
-                            y: 2635,
-                            w: usableW * 0.28,
-                            slideAmp: usableW * 0.16,
-                            phase: 0,
-                            speed: 1.3,
-                            x1: 0,
-                            x2: 0,
-                            color: '#fb923c'
-                        },
-                        {
-                            baseX: wallLeft + usableW * 0.22,
-                            y: 2855,
-                            w: usableW * 0.28,
-                            slideAmp: usableW * 0.16,
-                            phase: Math.PI,
-                            speed: 1.3,
-                            x1: 0,
-                            x2: 0,
-                            color: '#fb923c'
-                        }
-                    );
-                    this.spinners.push(
-                        { x: wallLeft + usableW * 0.26, y: 2705, armLen: armBase * 0.85, blades: 4, angle: 0.2, omega: 0.105, color: '#a855f7' },
-                        { x: wallLeft + usableW * 0.74, y: 2935, armLen: armBase * 0.85, blades: 4, angle: 0.9, omega: -0.105, color: '#ec4899' }
-                    );
-                    this.bumpers.push(
-                        { baseX: midX, x: midX, y: 3145, r: 15, phase: 0.5, amp: Math.min(110, usableW * 0.24) }
-                    );
+                    addRamp(wallLeft + 4, 3365, wallLeft + usableW * 0.25, 3460, true, '#f43f5e');
+                    addRamp(wallRight - 4, 3365, wallLeft + usableW * 0.75, 3460, true, '#f43f5e');
 
-                    // =================================================================
-                    // ZONA 6: RECTA FINAL CON TURBINAS GUARDIANAS ANTES DE LA META
-                    // =================================================================
-                    this.ramps.push(
-                        { x1: wallLeft + 4, y1: 3220, x2: wallLeft + usableW * 0.24, y2: 3305 },
-                        { x1: wallRight - 4, y1: 3220, x2: wallLeft + usableW * 0.76, y2: 3305 }
-                    );
-                    addPegGrid(3325, 3, baseCols, 56);
-                    this.spinners.push(
-                        { x: wallLeft + usableW * 0.30, y: 3535, armLen: armBase * 0.92, blades: 4, angle: 0.3, omega: 0.125, color: '#f97316', turbo: true },
-                        { x: wallLeft + usableW * 0.70, y: 3535, armLen: armBase * 0.92, blades: 4, angle: 0.8, omega: -0.125, color: '#6366f1', turbo: true }
-                    );
-                    addPegGrid(3635, 2, baseCols, 46);
+                    // Dos molinos turbo contrarrotatorios que oscilan horizontalmente justo antes de la meta
+                    addSpinner({
+                        x: wallLeft + usableW * 0.32,
+                        y: 3560,
+                        armLen: Math.min(usableW * 0.16, 86),
+                        blades: 4,
+                        omega: 0.185,
+                        color: '#22d3ee',
+                        turbo: true,
+                        ampX: usableW * 0.12,
+                        moveSpeedX: 2.2,
+                        phaseX: 0
+                    });
+                    addSpinner({
+                        x: wallLeft + usableW * 0.68,
+                        y: 3560,
+                        armLen: Math.min(usableW * 0.16, 86),
+                        blades: 4,
+                        omega: -0.185,
+                        color: '#f97316',
+                        turbo: true,
+                        ampX: usableW * 0.12,
+                        moveSpeedX: 2.2,
+                        phaseX: Math.PI
+                    });
 
-                    this.updateGates();
+                    // 3 Pop Bumpers guardianes justo encima de la línea de meta (pueden voltear el 1er lugar)
+                    addBumper(wallLeft + usableW * 0.24, 3745, 18, '#facc15');
+                    addBumper(midX, 3720, 20, '#f43f5e', usableW * 0.14, 1.1, 2.3);
+                    addBumper(wallLeft + usableW * 0.76, 3745, 18, '#facc15');
+
+                    // Clavijas de desvío final
+                    const finalCols = Math.max(7, Math.min(11, Math.floor(usableW / 62)));
+                    const span = usableW - 60;
+                    for (let c = 0; c < finalCols; c++) {
+                        this.pegs.push({
+                            x: wallLeft + 30 + (c / Math.max(1, finalCols - 1)) * span,
+                            y: 3825,
+                            r: 5,
+                            glow: 0
+                        });
+                    }
+
+                    this.updateDynamicObstacles(1);
                 },
 
-                updateGates() {
+                updateDynamicObstacles(dt) {
                     const wallLeft = 18;
                     const wallRight = canvasW - 34;
+
+                    // Actualizar compuertas/pistones con velocidad real para que empujen
                     for (const g of this.gates) {
-                        const cx = g.baseX + Math.sin(this.time * g.speed + g.phase) * g.slideAmp;
+                        const prevCx = (g.x1 + g.x2) * 0.5 || g.baseX;
+                        const prevY = g.y;
+                        const cx = g.baseX + Math.sin(this.time * g.speed + g.phase) * g.slideAmpX;
                         g.x1 = Math.max(wallLeft + 2, cx - g.w / 2);
                         g.x2 = Math.min(wallRight - 2, cx + g.w / 2);
+                        g.y = g.baseY + (g.slideAmpY ? Math.cos(this.time * g.speed * 1.1 + g.phase) * g.slideAmpY : 0);
+                        const newCx = (g.x1 + g.x2) * 0.5;
+                        g.vx = (newCx - prevCx) / Math.max(0.2, dt);
+                        g.vy = (g.y - prevY) / Math.max(0.2, dt);
+                    }
+
+                    // Actualizar bumpers móviles
+                    for (const b of this.bumpers) {
+                        if (b.amp) {
+                            b.x = b.baseX + Math.sin(this.time * b.moveSpeed + b.phase) * b.amp;
+                        }
+                        if (b.hitFlash > 0) b.hitFlash = Math.max(0, b.hitFlash - 0.08 * dt);
+                    }
+
+                    // Actualizar molinos móviles (horizontal y vertical)
+                    for (const sp of this.spinners) {
+                        const prevX = sp.x;
+                        const prevY = sp.y;
+                        sp.x = sp.baseX + (sp.ampX ? Math.sin(this.time * sp.moveSpeedX + sp.phaseX) * sp.ampX : 0);
+                        sp.y = sp.baseY + (sp.ampY ? Math.sin(this.time * sp.moveSpeedY + sp.phaseY) * sp.ampY : 0);
+                        sp.vx = (sp.x - prevX) / Math.max(0.2, dt);
+                        sp.vy = (sp.y - prevY) / Math.max(0.2, dt);
+                        if (sp.hitFlash > 0) sp.hitFlash = Math.max(0, sp.hitFlash - 0.1 * dt);
+                    }
+
+                    // Decaimiento de destellos visuales
+                    for (const rm of this.ramps) {
+                        if (rm.flash > 0) rm.flash = Math.max(0, rm.flash - 0.1 * dt);
+                    }
+                    for (const wk of this.wallKickers) {
+                        if (wk.flash > 0) wk.flash = Math.max(0, wk.flash - 0.1 * dt);
                     }
                 },
 
@@ -1268,6 +1481,7 @@
 
                 reset() {
                     this.time = 0;
+                    this.elapsedSec = 0;
                     this.buildBoard();
                     this.cameraY = 0;
                     this.marbles = [];
@@ -1287,7 +1501,7 @@
                         this.marbles.push({
                             student: s,
                             x,
-                            y: 26 + row * (r * 2.15),
+                            y: 24 + row * (r * 2.15),
                             vx: 0,
                             vy: 0,
                             r,
@@ -1302,6 +1516,7 @@
                     const active = getActiveStudents();
                     if (active.length === 0) return;
                     this.time = 0;
+                    this.elapsedSec = 0;
                     this.buildBoard();
                     this.cameraY = 0;
                     this.winners = [];
@@ -1318,14 +1533,14 @@
                         const row = Math.floor(i / colsPerRow);
                         const col = i % colsPerRow;
                         const span = wallRight - wallLeft;
-                        const jitter = (Math.random() - 0.5) * 10;
+                        const jitter = (Math.random() - 0.5) * 12;
                         const x = Math.max(wallLeft, Math.min(wallRight, wallLeft + (col / Math.max(1, colsPerRow - 1)) * span + jitter));
                         return {
                             student: s,
                             x,
-                            y: 22 + row * (r * 2.1),
-                            vx: (Math.random() - 0.5) * 2.6,
-                            vy: Math.random() * 0.9,
+                            y: 20 + row * (r * 2.1),
+                            vx: (Math.random() - 0.5) * 4.5,
+                            vy: Math.random() * 1.4,
                             r,
                             finished: false,
                             stuckFrames: 0
@@ -1334,33 +1549,32 @@
 
                     state.isRunning = true;
                     updateControlsUI();
-                    setStageBadge(`Canicas al embudo turbo (0/${this.targetCount} en meta)`);
+                    setStageBadge(`¡Pinball Infernal! (0/${this.targetCount} en meta)`);
                     this.loop();
                 },
 
                 loop() {
                     const now = performance.now();
-                    const dt = Math.min(1.8, Math.max(0.4, (now - this.lastFrameTime) / 16.667));
+                    const dt = Math.min(1.75, Math.max(0.4, (now - this.lastFrameTime) / 16.667));
                     this.lastFrameTime = now;
-                    this.time += 0.036 * dt;
+                    this.time += 0.04 * dt;
+                    this.elapsedSec += (dt * 16.667) / 1000;
 
                     const wallLeft = 18;
                     const wallRight = canvasW - 34;
 
-                    // Actualizar deflectores móviles, compuertas de retención y molinos rápidos
-                    for (const b of this.bumpers) {
-                        b.x = b.baseX + Math.sin(this.time * 1.15 + b.phase) * b.amp;
-                    }
-                    this.updateGates();
+                    this.updateDynamicObstacles(dt);
 
-                    // Física con 5 sub-pasos para evitar atravesar aspas súper rápidas
-                    const subSteps = 5;
-                    const gravity = (0.14 * dt) / subSteps;
-                    const maxVy = 5.6;
-                    const maxVx = 8.4;
+                    // Física estilo Pinball Infernal con 6 sub-pasos para combos explosivos sin atravesar paletas
+                    const subSteps = 6;
+                    const baseGravity = this.elapsedSec > 24 ? 0.24 : 0.185;
+                    const gravity = (baseGravity * dt) / subSteps;
+                    const maxVyDown = 8.4;
+                    const maxVyUp = -14.2;
+                    const maxVx = 14.5;
 
                     for (let step = 0; step < subSteps; step++) {
-                        // Girar los molinos gradualmente en cada sub-paso
+                        // Girar las aspas en cada sub-paso
                         for (const sp of this.spinners) {
                             sp.angle += (sp.omega * dt) / subSteps;
                         }
@@ -1368,24 +1582,48 @@
                         for (const m of this.marbles) {
                             if (m.finished) continue;
 
-                            m.vy = Math.min(maxVy, m.vy + gravity);
-                            m.vx = Math.max(-maxVx, Math.min(maxVx, m.vx * 0.996));
+                            m.vy = Math.max(maxVyUp, Math.min(maxVyDown, m.vy + gravity));
+                            m.vx = Math.max(-maxVx, Math.min(maxVx, m.vx * 0.997));
                             m.x += (m.vx * dt) / subSteps;
                             m.y += (m.vy * dt) / subSteps;
 
-                            // Paredes laterales
+                            // Paredes laterales CON IMPULSORES ACTIVOS (empujan hacia el caos)
                             if (m.x - m.r < wallLeft) {
                                 m.x = wallLeft + m.r;
-                                m.vx = Math.abs(m.vx) * 0.74 + 0.4;
+                                const kicker = this.wallKickers.find(k => k.side === 'left' && m.y >= k.y1 && m.y <= k.y2);
+                                if (kicker) {
+                                    m.vx = Math.min(maxVx, Math.max(8.2, Math.abs(m.vx) * 1.15 + 5.0));
+                                    m.vy = Math.max(maxVyUp, Math.min(m.vy, -2.5 - Math.random() * 3.8));
+                                    kicker.flash = 1;
+                                    this.spawnSparks(wallLeft + 2, m.y, '#38bdf8', 5, 4.5);
+                                    if (Math.random() < 0.25) sound.playBounce();
+                                } else {
+                                    m.vx = Math.max(3.6, Math.abs(m.vx) * 0.92 + 1.8);
+                                }
                             } else if (m.x + m.r > wallRight) {
                                 m.x = wallRight - m.r;
-                                m.vx = -Math.abs(m.vx) * 0.74 - 0.4;
+                                const kicker = this.wallKickers.find(k => k.side === 'right' && m.y >= k.y1 && m.y <= k.y2);
+                                if (kicker) {
+                                    m.vx = Math.max(-maxVx, -Math.max(8.2, Math.abs(m.vx) * 1.15 + 5.0));
+                                    m.vy = Math.max(maxVyUp, Math.min(m.vy, -2.5 - Math.random() * 3.8));
+                                    kicker.flash = 1;
+                                    this.spawnSparks(wallRight - 2, m.y, '#38bdf8', 5, 4.5);
+                                    if (Math.random() < 0.25) sound.playBounce();
+                                } else {
+                                    m.vx = -Math.max(3.6, Math.abs(m.vx) * 0.92 + 1.8);
+                                }
                             }
 
-                            // Colisión con rampas y muros divisores
+                            // Techo de seguridad para súper rebotes hacia arriba
+                            if (m.y - m.r < 10) {
+                                m.y = 10 + m.r;
+                                m.vy = Math.abs(m.vy) * 0.65;
+                            }
+
+                            // Colisión con rampas y Slingshots elásticos
                             for (const rm of this.ramps) {
-                                const minY = Math.min(rm.y1, rm.y2) - m.r - 8;
-                                const maxY = Math.max(rm.y1, rm.y2) + m.r + 8;
+                                const minY = Math.min(rm.y1, rm.y2) - m.r - 10;
+                                const maxY = Math.max(rm.y1, rm.y2) + m.r + 10;
                                 if (m.y < minY || m.y > maxY) continue;
 
                                 const dx = rm.x2 - rm.x1;
@@ -1398,7 +1636,7 @@
                                 const distX = m.x - cx;
                                 const distY = m.y - cy;
                                 const distSq = distX * distX + distY * distY;
-                                const minDist = m.r + 4.5;
+                                const minDist = m.r + 5;
                                 if (distSq < minDist * minDist && distSq > 0.0001) {
                                     const dist = Math.sqrt(distSq);
                                     const nx = distX / dist;
@@ -1408,25 +1646,34 @@
 
                                     const dot = m.vx * nx + m.vy * ny;
                                     if (dot < 0) {
-                                        m.vx = (m.vx - 1.62 * dot * nx) * 0.82;
-                                        m.vy = (m.vy - 1.62 * dot * ny) * 0.82;
-                                        if (Math.abs(dx) > 4) {
-                                            const slopeSign = dx > 0 ? 1 : -1;
-                                            m.vx += slopeSign * 0.26;
+                                        if (rm.kicker) {
+                                            // Slingshot: dispara la canica con violencia en la dirección normal
+                                            const launch = Math.min(13.5, Math.abs(dot) * 1.4 + 6.8);
+                                            m.vx = Math.max(-maxVx, Math.min(maxVx, m.vx - dot * nx + nx * launch + (Math.random() - 0.5) * 2.2));
+                                            m.vy = Math.max(maxVyUp, Math.min(maxVyDown, m.vy - dot * ny + ny * launch));
+                                            rm.flash = 1;
+                                            this.spawnSparks(cx, cy, rm.color, 6, 5.2);
+                                            if (Math.random() < 0.28) sound.tone(720 + Math.random() * 240, 0.06, 'sawtooth', 0.06, 420);
+                                        } else {
+                                            m.vx = (m.vx - 1.78 * dot * nx) * 0.9;
+                                            m.vy = (m.vy - 1.78 * dot * ny) * 0.9;
+                                            if (Math.abs(dx) > 4) {
+                                                m.vx += (dx > 0 ? 1 : -1) * 0.35;
+                                            }
                                         }
                                     }
                                 }
                             }
 
-                            // Colisión con compuertas móviles de retención temporal
+                            // Colisión con compuertas y pistones móviles (transfieren su empuje real)
                             for (const g of this.gates) {
-                                if (Math.abs(m.y - g.y) > m.r + 8) continue;
+                                if (Math.abs(m.y - g.y) > m.r + 10) continue;
                                 const cx = Math.max(g.x1, Math.min(g.x2, m.x));
                                 const cy = g.y;
                                 const distX = m.x - cx;
                                 const distY = m.y - cy;
                                 const distSq = distX * distX + distY * distY;
-                                const minDist = m.r + 5.5;
+                                const minDist = m.r + 6;
                                 if (distSq < minDist * minDist && distSq > 0.0001) {
                                     const dist = Math.sqrt(distSq);
                                     const nx = distX / dist;
@@ -1434,18 +1681,20 @@
                                     m.x += nx * (minDist - dist);
                                     m.y += ny * (minDist - dist);
 
-                                    const dot = m.vx * nx + m.vy * ny;
+                                    const relVx = m.vx - g.vx * 1.6;
+                                    const relVy = m.vy - g.vy * 1.8;
+                                    const dot = relVx * nx + relVy * ny;
                                     if (dot < 0) {
-                                        m.vx = (m.vx - 1.45 * dot * nx) * 0.78;
-                                        m.vy = (m.vy - 1.45 * dot * ny) * 0.72;
+                                        m.vx = Math.max(-maxVx, Math.min(maxVx, g.vx * 1.7 + (relVx - 1.75 * dot * nx) * 0.92 + (Math.random() - 0.5) * 1.6));
+                                        m.vy = Math.max(maxVyUp, Math.min(maxVyDown, g.vy * 1.9 + (relVy - 1.75 * dot * ny) * 0.92));
                                     }
                                 }
                             }
 
-                            // Colisión con molinos giratorios rápidos (fuerte empuje tangencial)
+                            // Colisión con MOLINOS GIRATORIOS (fijos y móviles) — combos de alto impacto
                             for (const sp of this.spinners) {
-                                if (Math.abs(m.y - sp.y) > sp.armLen + m.r + 12) continue;
-                                if (Math.abs(m.x - sp.x) > sp.armLen + m.r + 12) continue;
+                                if (Math.abs(m.y - sp.y) > sp.armLen + m.r + 14) continue;
+                                if (Math.abs(m.x - sp.x) > sp.armLen + m.r + 14) continue;
 
                                 for (let bIdx = 0; bIdx < sp.blades; bIdx++) {
                                     const a = sp.angle + (bIdx * Math.PI * 2) / sp.blades;
@@ -1463,7 +1712,7 @@
                                     const distX = m.x - cx;
                                     const distY = m.y - cy;
                                     const distSq = distX * distX + distY * distY;
-                                    const minDist = m.r + 5;
+                                    const minDist = m.r + 5.5;
 
                                     if (distSq < minDist * minDist && distSq > 0.0001) {
                                         const dist = Math.sqrt(distSq);
@@ -1472,52 +1721,31 @@
                                         m.x += nx * (minDist - dist);
                                         m.y += ny * (minDist - dist);
 
-                                        // Velocidad tangencial alta para lanzar canicas con fuerza
-                                        const armDist = Math.max(12, t * sp.armLen);
-                                        const boost = sp.turbo ? 1.85 : 1.55;
-                                        const bladeVx = Math.max(-9, Math.min(9, -sinA * sp.omega * armDist * boost));
-                                        const bladeVy = Math.max(-7, Math.min(7, cosA * sp.omega * armDist * boost));
+                                        // Velocidad tangencial + traslación del molino para lanzar canicas a otros obstáculos
+                                        const armDist = Math.max(22, t * sp.armLen);
+                                        const boost = sp.turbo ? 1.85 : 1.5;
+                                        const tangVx = -sinA * sp.omega * armDist * boost;
+                                        const tangVy = cosA * sp.omega * armDist * boost;
+                                        const bladeVx = sp.vx * 1.4 + tangVx;
+                                        const bladeVy = sp.vy * 1.4 + tangVy;
 
                                         const relVx = m.vx - bladeVx;
                                         const relVy = m.vy - bladeVy;
                                         const dot = relVx * nx + relVy * ny;
                                         if (dot < 0) {
-                                            m.vx = Math.max(-maxVx, Math.min(maxVx, bladeVx + (relVx - 1.8 * dot * nx) * 0.85));
-                                            m.vy = Math.max(-6.2, Math.min(maxVy, bladeVy + (relVy - 1.8 * dot * ny) * 0.85));
-                                            if (Math.random() < 0.16) sound.playBounce();
+                                            m.vx = Math.max(-maxVx, Math.min(maxVx, bladeVx + (relVx - 1.9 * dot * nx) * 0.92 + (Math.random() - 0.5) * 1.8));
+                                            m.vy = Math.max(maxVyUp, Math.min(maxVyDown, bladeVy + (relVy - 1.9 * dot * ny) * 0.92));
+                                            sp.hitFlash = 1;
+                                            this.spawnSparks(cx, cy, sp.color, 4, 4.8);
+                                            if (Math.random() < 0.2) sound.playBounce();
                                         }
                                     }
                                 }
                             }
 
-                            // Colisión con clavijas (pegs)
-                            for (const p of this.pegs) {
-                                if (Math.abs(m.y - p.y) > m.r + p.r + 2) continue;
-                                const dx = m.x - p.x;
-                                const dy = m.y - p.y;
-                                const distSq = dx * dx + dy * dy;
-                                const minDist = m.r + p.r;
-                                if (distSq < minDist * minDist && distSq > 0.001) {
-                                    const dist = Math.sqrt(distSq);
-                                    const nx = dx / dist;
-                                    const ny = dy / dist;
-                                    const overlap = minDist - dist;
-                                    m.x += nx * overlap;
-                                    m.y += ny * overlap;
-
-                                    const dot = m.vx * nx + m.vy * ny;
-                                    if (dot < 0) {
-                                        m.vx = (m.vx - 2 * dot * nx) * 0.68 + (Math.random() - 0.5) * 0.9;
-                                        m.vy = (m.vy - 2 * dot * ny) * 0.64;
-                                        p.glow = 1;
-                                        if (Math.random() < 0.1) sound.playBounce();
-                                    }
-                                }
-                            }
-
-                            // Colisión con deflectores móviles
+                            // Colisión con POP BUMPERS de pinball (explosión radial en cualquier dirección)
                             for (const b of this.bumpers) {
-                                if (Math.abs(m.y - b.y) > m.r + b.r + 2) continue;
+                                if (Math.abs(m.y - b.y) > m.r + b.r + 4) continue;
                                 const dx = m.x - b.x;
                                 const dy = m.y - b.y;
                                 const distSq = dx * dx + dy * dy;
@@ -1528,14 +1756,40 @@
                                     const ny = dy / dist;
                                     m.x += nx * (minDist - dist);
                                     m.y += ny * (minDist - dist);
-                                    m.vx = nx * 5.2 + (Math.random() - 0.5);
-                                    m.vy = Math.min(maxVy, ny * 4.4);
-                                    sound.playBounce();
+
+                                    const kickSpeed = 9.6 + Math.random() * 3.2;
+                                    m.vx = Math.max(-maxVx, Math.min(maxVx, nx * kickSpeed + (Math.random() - 0.5) * 2.5));
+                                    m.vy = Math.max(maxVyUp, Math.min(maxVyDown, ny * kickSpeed - 1.2));
+                                    b.hitFlash = 1;
+                                    this.spawnSparks(b.x + nx * b.r, b.y + ny * b.r, '#facc15', 7, 5.5);
+                                    if (Math.random() < 0.45) sound.tone(820 + Math.random() * 320, 0.065, 'triangle', 0.075, 420);
+                                }
+                            }
+
+                            // Colisión con clavijas finales
+                            for (const p of this.pegs) {
+                                if (Math.abs(m.y - p.y) > m.r + p.r + 2) continue;
+                                const dx = m.x - p.x;
+                                const dy = m.y - p.y;
+                                const distSq = dx * dx + dy * dy;
+                                const minDist = m.r + p.r;
+                                if (distSq < minDist * minDist && distSq > 0.001) {
+                                    const dist = Math.sqrt(distSq);
+                                    const nx = dx / dist;
+                                    const ny = dy / dist;
+                                    m.x += nx * (minDist - dist);
+                                    m.y += ny * (minDist - dist);
+                                    const dot = m.vx * nx + m.vy * ny;
+                                    if (dot < 0) {
+                                        m.vx = (m.vx - 2 * dot * nx) * 0.8 + (Math.random() - 0.5) * 2.2;
+                                        m.vy = (m.vy - 2 * dot * ny) * 0.78;
+                                        p.glow = 1;
+                                    }
                                 }
                             }
                         }
 
-                        // Colisión entre canicas
+                        // Colisión elástica entre canicas (choques en cadena)
                         for (let i = 0; i < this.marbles.length; i++) {
                             const a = this.marbles[i];
                             if (a.finished) continue;
@@ -1561,7 +1815,7 @@
                                     const dvy = a.vy - b.vy;
                                     const dot = dvx * nx + dvy * ny;
                                     if (dot > 0) {
-                                        const imp = dot * 0.78;
+                                        const imp = dot * 0.88;
                                         a.vx -= imp * nx;
                                         a.vy -= imp * ny;
                                         b.vx += imp * nx;
@@ -1572,17 +1826,26 @@
                         }
                     }
 
-                    // Anti-atasco suave (permite retenciones momentáneas en compuertas, evita bloqueos eternos)
+                    // Actualizar partículas de chispas
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        const pt = this.particles[i];
+                        pt.x += pt.vx * dt;
+                        pt.y += pt.vy * dt;
+                        pt.life -= 0.055 * dt;
+                        if (pt.life <= 0) this.particles.splice(i, 1);
+                    }
+
+                    // Anti-atasco ágil y detección de meta
                     let leadMarble = null;
                     for (const m of this.marbles) {
                         if (m.finished) continue;
                         if (!leadMarble || m.y > leadMarble.y) leadMarble = m;
 
-                        if (Math.abs(m.vx) + Math.abs(m.vy) < 0.32) {
+                        if (Math.abs(m.vx) + Math.abs(m.vy) < 0.45) {
                             m.stuckFrames++;
-                            if (m.stuckFrames > 36) {
-                                m.vx += (Math.random() - 0.5) * 4.2;
-                                m.vy += 1.2;
+                            if (m.stuckFrames > 26) {
+                                m.vx += (Math.random() - 0.5) * 7.5;
+                                m.vy += 2.2;
                                 m.stuckFrames = 0;
                             }
                         } else {
@@ -1594,6 +1857,7 @@
                             m.y = this.finishY - m.r;
                             this.winners.push(m.student);
                             sound.playGoal();
+                            this.spawnSparks(m.x, m.y, '#facc15', 16, 6);
                             setStageBadge(`En meta: ${this.winners.length}/${this.targetCount} — ¡${m.student.name}!`);
                             if (this.winners.length >= this.targetCount) {
                                 this.cameraY = Math.max(0, this.worldHeight - canvasH);
@@ -1604,10 +1868,10 @@
                         }
                     }
 
-                    // Seguimiento suave de cámara hacia el puntero
+                    // Cámara suave siguiendo al líder del frenesí
                     if (leadMarble) {
-                        const targetCam = Math.max(0, Math.min(this.worldHeight - canvasH, leadMarble.y - canvasH * 0.50));
-                        this.cameraY += (targetCam - this.cameraY) * Math.min(1, 0.1 * dt);
+                        const targetCam = Math.max(0, Math.min(this.worldHeight - canvasH, leadMarble.y - canvasH * 0.48));
+                        this.cameraY += (targetCam - this.cameraY) * Math.min(1, 0.11 * dt);
                         const pct = Math.min(99, Math.floor((leadMarble.y / this.finishY) * 100));
                         if (this.winners.length === 0) {
                             setStageBadge(`Líder: ${leadMarble.student.name} (${pct}%)`);
@@ -1632,12 +1896,24 @@
                     ctx.save();
                     ctx.translate(0, -this.cameraY);
 
-                    // Paredes laterales
+                    // Paredes laterales base
                     ctx.fillStyle = 'rgba(255,255,255,0.06)';
                     ctx.fillRect(0, 0, wallLeft, this.worldHeight);
                     ctx.fillRect(wallRight, 0, canvasW - wallRight, this.worldHeight);
 
-                    // Marcadores de zonas del circuito
+                    // Zonas impulsoras de pared (Kickers laterales estilo Pinball)
+                    for (const wk of this.wallKickers) {
+                        if (wk.y2 < this.cameraY - 20 || wk.y1 > this.cameraY + canvasH + 20) continue;
+                        const x = wk.side === 'left' ? wallLeft - 5 : wallRight;
+                        ctx.fillStyle = wk.flash > 0 ? '#facc15' : 'rgba(56, 189, 248, 0.72)';
+                        ctx.fillRect(x, wk.y1, 5, wk.y2 - wk.y1);
+                        if (wk.flash > 0) {
+                            ctx.fillStyle = `rgba(250, 204, 21, ${wk.flash * 0.45})`;
+                            ctx.fillRect(wk.side === 'left' ? wallLeft : wallRight - 10, wk.y1, 10, wk.y2 - wk.y1);
+                        }
+                    }
+
+                    // Marcadores de zonas
                     ctx.strokeStyle = 'rgba(148,163,184,0.14)';
                     ctx.setLineDash([8, 8]);
                     ctx.lineWidth = 1.5;
@@ -1645,12 +1921,12 @@
                     ctx.fillStyle = 'rgba(148,163,184,0.52)';
                     ctx.textAlign = 'left';
                     [
-                        { y: 135, label: 'ZONA 1 — EMBUDO Y MOLINO TURBO' },
-                        { y: 560, label: 'ZONA 2 — BIFURCACIÓN: MOLINOS vs. ZIG-ZAG' },
-                        { y: 1255, label: 'ZONA 3 — COMPUERTAS DE RETENCIÓN' },
-                        { y: 1780, label: 'ZONA 4 — TRIPLE BIFURCACIÓN CAÓTICA' },
-                        { y: 2505, label: 'ZONA 5 — LABERINTO CON COMPUERTAS' },
-                        { y: 3205, label: 'ZONA 6 — TURBINAS GUARDIANAS Y META' }
+                        { y: 120, label: 'ZONA 1 — LA LICUADORA INICIAL (ENGRANAJE TURBO)' },
+                        { y: 660, label: 'ZONA 2 — COMBOS ENGRANADOS + MOLINO PATRULLA' },
+                        { y: 1290, label: 'ZONA 3 — REAGRUPADOR CON COMPUERTAS Y MOLINO VERTICAL' },
+                        { y: 1945, label: 'ZONA 4 — PINBALL INFERNAL (BUMPERS Y MOLINOS CRUZADOS)' },
+                        { y: 2715, label: 'ZONA 5 — CÁMARAS DE CAOS Y PISTÓN EMPUJADOR' },
+                        { y: 3345, label: 'ZONA 6 — CAOS FINAL ANTES DE LA META' }
                     ].forEach(z => {
                         if (z.y < this.cameraY - 30 || z.y > this.cameraY + canvasH + 30) return;
                         ctx.beginPath();
@@ -1665,9 +1941,9 @@
                     const checkSize = 14;
                     for (let x = wallLeft; x < wallRight; x += checkSize) {
                         const idx = Math.floor(x / checkSize);
-                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.9)';
+                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.92)';
                         ctx.fillRect(x, this.finishY, Math.min(checkSize, wallRight - x), 10);
-                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(15,23,42,0.9)' : 'rgba(255,255,255,0.9)';
+                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.92)';
                         ctx.fillRect(x, this.finishY + 10, Math.min(checkSize, wallRight - x), 10);
                     }
                     ctx.fillStyle = '#facc15';
@@ -1675,65 +1951,82 @@
                     ctx.textAlign = 'center';
                     ctx.fillText('🏁 META FINAL 🏁', (wallLeft + wallRight) / 2, this.finishY + 38);
 
-                    // Rampas inclinadas y muros de bifurcación
+                    // Rampas normales y Slingshots elásticos brillantes
                     ctx.lineCap = 'round';
                     for (const rm of this.ramps) {
                         if (Math.max(rm.y1, rm.y2) < this.cameraY - 30 || Math.min(rm.y1, rm.y2) > this.cameraY + canvasH + 30) continue;
-                        const isVerticalWall = Math.abs(rm.x2 - rm.x1) < 2;
                         ctx.beginPath();
                         ctx.moveTo(rm.x1, rm.y1);
                         ctx.lineTo(rm.x2, rm.y2);
-                        ctx.lineWidth = 9;
-                        ctx.strokeStyle = isVerticalWall ? '#6366f1' : '#38bdf8';
+                        ctx.lineWidth = rm.kicker ? (rm.flash > 0 ? 13 : 10) : 9;
+                        ctx.strokeStyle = rm.flash > 0 ? '#facc15' : rm.color;
                         ctx.stroke();
+
                         ctx.lineWidth = 3;
-                        ctx.strokeStyle = isVerticalWall ? '#c7d2fe' : '#e0f2fe';
+                        ctx.strokeStyle = '#ffffff';
+                        if (rm.kicker) ctx.setLineDash([7, 5]);
                         ctx.stroke();
+                        ctx.setLineDash([]);
                     }
 
-                    // Compuertas móviles (paredes que retienen momentáneamente)
+                    // Compuertas y pistones empujadores
                     for (const g of this.gates) {
-                        if (g.y < this.cameraY - 25 || g.y > this.cameraY + canvasH + 25) continue;
-                        // Riel guía
+                        if (g.y < this.cameraY - 40 || g.y > this.cameraY + canvasH + 40) continue;
                         ctx.strokeStyle = 'rgba(255,255,255,0.12)';
                         ctx.lineWidth = 2;
                         ctx.beginPath();
-                        ctx.moveTo(Math.max(wallLeft, g.baseX - g.slideAmp - g.w / 2), g.y);
-                        ctx.lineTo(Math.min(wallRight, g.baseX + g.slideAmp + g.w / 2), g.y);
+                        ctx.moveTo(Math.max(wallLeft, g.baseX - g.slideAmpX - g.w / 2), g.y);
+                        ctx.lineTo(Math.min(wallRight, g.baseX + g.slideAmpX + g.w / 2), g.y);
                         ctx.stroke();
 
-                        // Barra móvil
                         ctx.beginPath();
                         ctx.moveTo(g.x1, g.y);
                         ctx.lineTo(g.x2, g.y);
-                        ctx.lineWidth = 11;
+                        ctx.lineWidth = 12;
                         ctx.lineCap = 'round';
                         ctx.strokeStyle = g.color;
                         ctx.stroke();
 
-                        ctx.lineWidth = 3;
+                        ctx.lineWidth = 3.5;
                         ctx.strokeStyle = '#ffffff';
                         ctx.setLineDash([8, 6]);
                         ctx.stroke();
                         ctx.setLineDash([]);
                     }
 
-                    // Obstáculos giratorios (molinos rápidos con estela de velocidad)
+                    // Molinos giratorios (con rieles guía para los que oscilan en X o Y)
                     for (const sp of this.spinners) {
-                        if (sp.y + sp.armLen < this.cameraY - 25 || sp.y - sp.armLen > this.cameraY + canvasH + 25) continue;
+                        if (sp.y + sp.armLen < this.cameraY - 35 || sp.y - sp.armLen > this.cameraY + canvasH + 35) continue;
+
+                        // Riel guía de oscilación
+                        if (sp.ampX > 0) {
+                            ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            ctx.moveTo(sp.baseX - sp.ampX, sp.baseY);
+                            ctx.lineTo(sp.baseX + sp.ampX, sp.baseY);
+                            ctx.stroke();
+                        }
+                        if (sp.ampY > 0) {
+                            ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            ctx.moveTo(sp.baseX, sp.baseY - sp.ampY);
+                            ctx.lineTo(sp.baseX, sp.baseY + sp.ampY);
+                            ctx.stroke();
+                        }
+
                         ctx.save();
                         ctx.translate(sp.x, sp.y);
 
-                        // Halo de velocidad en molinos turbo
-                        if (sp.turbo) {
-                            ctx.beginPath();
-                            ctx.arc(0, 0, sp.armLen + 4, 0, Math.PI * 2);
-                            ctx.strokeStyle = 'rgba(34, 211, 238, 0.22)';
-                            ctx.lineWidth = 3;
-                            ctx.setLineDash([12, 10]);
-                            ctx.stroke();
-                            ctx.setLineDash([]);
-                        }
+                        // Halo de barrido
+                        ctx.beginPath();
+                        ctx.arc(0, 0, sp.armLen + 2, 0, Math.PI * 2);
+                        ctx.strokeStyle = sp.hitFlash > 0 ? 'rgba(250, 204, 21, 0.45)' : 'rgba(255, 255, 255, 0.1)';
+                        ctx.lineWidth = sp.turbo ? 2.5 : 1.5;
+                        ctx.setLineDash([10, 10]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
 
                         ctx.rotate(sp.angle);
                         for (let bIdx = 0; bIdx < sp.blades; bIdx++) {
@@ -1741,17 +2034,17 @@
                             ctx.beginPath();
                             ctx.moveTo(0, 0);
                             ctx.lineTo(Math.cos(a) * sp.armLen, Math.sin(a) * sp.armLen);
-                            ctx.lineWidth = 10;
+                            ctx.lineWidth = 10.5;
                             ctx.lineCap = 'round';
-                            ctx.strokeStyle = sp.color;
+                            ctx.strokeStyle = sp.hitFlash > 0 ? '#fde047' : sp.color;
                             ctx.stroke();
 
                             ctx.lineWidth = 3;
-                            ctx.strokeStyle = 'rgba(255,255,255,0.88)';
+                            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
                             ctx.stroke();
                         }
 
-                        // Eje central del molino
+                        // Eje central
                         ctx.beginPath();
                         ctx.arc(0, 0, 10, 0, Math.PI * 2);
                         ctx.fillStyle = '#0f172a';
@@ -1767,31 +2060,60 @@
                         ctx.restore();
                     }
 
-                    // Clavijas visibles
+                    // Pop Bumpers de Pinball (se expanden y brillan al golpear)
+                    for (const b of this.bumpers) {
+                        if (b.y < this.cameraY - 35 || b.y > this.cameraY + canvasH + 35) continue;
+                        const drawR = b.r + b.hitFlash * 5;
+                        ctx.save();
+                        if (b.hitFlash > 0) {
+                            ctx.beginPath();
+                            ctx.arc(b.x, b.y, drawR + 7, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgba(250, 204, 21, ${b.hitFlash * 0.45})`;
+                            ctx.fill();
+                        }
+                        ctx.beginPath();
+                        ctx.arc(b.x, b.y, drawR, 0, Math.PI * 2);
+                        const grad = ctx.createRadialGradient(b.x - 4, b.y - 4, 2, b.x, b.y, drawR);
+                        grad.addColorStop(0, '#ffffff');
+                        grad.addColorStop(0.45, b.hitFlash > 0 ? '#facc15' : b.color);
+                        grad.addColorStop(1, '#1e1b4b');
+                        ctx.fillStyle = grad;
+                        ctx.fill();
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = b.hitFlash > 0 ? '#fef08a' : '#ffffff';
+                        ctx.stroke();
+
+                        // Aro interior estilo bumper clásico
+                        ctx.beginPath();
+                        ctx.arc(b.x, b.y, drawR * 0.48, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+
+                    // Clavijas finales
                     for (const p of this.pegs) {
                         if (p.y < this.cameraY - 20 || p.y > this.cameraY + canvasH + 20) continue;
                         ctx.beginPath();
                         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                        ctx.fillStyle = p.glow > 0 ? `rgba(250, 204, 21, ${0.45 + p.glow * 0.55})` : '#64748b';
+                        ctx.fillStyle = p.glow > 0 ? `rgba(250, 204, 21, ${0.45 + p.glow * 0.55})` : '#94a3b8';
                         ctx.fill();
                         ctx.lineWidth = 1.4;
-                        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+                        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
                         ctx.stroke();
                     }
 
-                    // Deflectores móviles
-                    for (const b of this.bumpers) {
-                        if (b.y < this.cameraY - 30 || b.y > this.cameraY + canvasH + 30) continue;
+                    // Chispas de combos e impactos
+                    for (const pt of this.particles) {
+                        if (pt.y < this.cameraY - 20 || pt.y > this.cameraY + canvasH + 20) continue;
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, pt.life);
+                        ctx.fillStyle = pt.color;
                         ctx.beginPath();
-                        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-                        const grad = ctx.createRadialGradient(b.x - 4, b.y - 4, 2, b.x, b.y, b.r);
-                        grad.addColorStop(0, '#f472b6');
-                        grad.addColorStop(1, '#9333ea');
-                        ctx.fillStyle = grad;
+                        ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
                         ctx.fill();
-                        ctx.lineWidth = 2.5;
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.stroke();
+                        ctx.restore();
                     }
 
                     // Canicas
