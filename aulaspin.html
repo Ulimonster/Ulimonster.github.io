@@ -571,6 +571,22 @@
                     this.playTone(660, 0.14, 'triangle', 0.12, 990);
                 }
 
+                playLaser() {
+                    this.playTone(1180, 0.18, 'sawtooth', 0.075, 190);
+                }
+
+                playMeteor() {
+                    this.playTone(145, 0.24, 'square', 0.08, 42);
+                }
+
+                playUfo() {
+                    if (this.muted) return;
+                    this.init();
+                    this.playTone(540, 0.14, 'sine', 0.075, 780);
+                    setTimeout(() => this.playTone(780, 0.16, 'sine', 0.075, 480), 110);
+                    setTimeout(() => this.playTone(520, 0.18, 'sine', 0.07, 820), 230);
+                }
+
                 playWin() {
                     if (this.muted) return;
                     this.init();
@@ -584,54 +600,51 @@
             const sound = new SoundEngine();
 
             /* =====================================================================
-             * 3. ESTADO GLOBAL DE LA APLICACIÓN (EN MEMORIA)
+             * 3. ESTADO GLOBAL Y GRUPOS PRECARGADOS (36 ALUMNOS DE EJEMPLO)
              * ===================================================================== */
-            function createStudent(name, index) {
+            function createStudent(name, idx) {
                 return {
                     id: uid(),
-                    name: name.trim(),
+                    name,
                     active: true,
                     wonCount: 0,
-                    color: getColorForIndex(index)
+                    color: getColorForIndex(idx)
                 };
             }
 
+            const SAMPLE_GROUP_36 = [
+                'Sofía Martínez', 'Diego Hernández', 'Valentina López', 'Mateo González',
+                'Camila Pérez', 'Sebastián Rodríguez', 'Isabella Sánchez', 'Santiago Ramírez',
+                'Lucía Torres', 'Alejandro Flores', 'Mariana Rivera', 'Nicolás Gómez',
+                'Regina Díaz', 'Emiliano Reyes', 'Ximena Morales', 'Leonardo Ortiz',
+                'Renata Gutiérrez', 'Daniel Chávez', 'Victoria Ramos', 'Gael Vargas',
+                'Abril Castillo', 'Matías Jiménez', 'Romina Mendoza', 'Samuel Ruiz',
+                'Fernanda Aguilar', 'Rodrigo Medina', 'Natalia Castro', 'Lucas Herrera',
+                'Valeria Romero', 'Iker Álvarez', 'Paulina Navarro', 'Andrés Domínguez',
+                'Andrea Vázquez', 'Bruno Serrano', 'Elena Blanco', 'Tomás Molina'
+            ];
+
+            const SAMPLE_GROUP_SMALL = [
+                'Ana Laura', 'Carlos Eduardo', 'Paola Vega', 'Jorge Luis',
+                'Diana Cruz', 'Miguel Ángel', 'Karla Sofía', 'Héctor Silva',
+                'Mónica Reyes', 'Oscar Iván', 'Tania Morales', 'Raúl Campos'
+            ];
+
+            const initialGroup1 = {
+                id: 'grp_1a',
+                name: '1° A — Matemáticas (36)',
+                students: SAMPLE_GROUP_36.map((n, i) => createStudent(n, i))
+            };
+
+            const initialGroup2 = {
+                id: 'grp_2b',
+                name: '2° B — Ciencias (12)',
+                students: SAMPLE_GROUP_SMALL.map((n, i) => createStudent(n, i))
+            };
+
             const state = {
-                groups: [
-                    {
-                        id: 'grp_1a',
-                        name: '1° A — Matemáticas (36)',
-                        students: [
-                            'Sofía Martínez', 'Diego Hernández', 'Valentina López', 'Mateo García',
-                            'Camila Rodríguez', 'Sebastián Pérez', 'Isabella Torres', 'Lucas Ramírez',
-                            'Renata Flores', 'Emiliano Castro', 'Ximena Morales', 'Santiago Vargas',
-                            'Regina Castillo', 'Leonardo Ortiz', 'Victoria Silva', 'Matías Mendoza',
-                            'Mariana Ruiz', 'Alejandro Cruz', 'Romina Navarro', 'Daniel Reyes',
-                            'Fernanda Vega', 'Nicolás Herrera', 'Lucía Domínguez', 'Gabriel Romero',
-                            'Paulina Aguilar', 'Andrés Medina', 'Valeria Guerrero', 'Iker Delgado',
-                            'Natalia Campos', 'Bruno Salazar', 'Andrea Guzmán', 'Gael Vázquez',
-                            'Julieta Ramos', 'Thiago Chávez', 'Abril Peña', 'Dylan Serrano'
-                        ].map((n, i) => createStudent(n, i))
-                    },
-                    {
-                        id: 'grp_2b',
-                        name: '2° B — Ciencias',
-                        students: [
-                            'Ana Paula Ruiz', 'Gabriel Mendoza', 'Mariana Ortiz', 'Andrés Silva',
-                            'Lucía Domínguez', 'Nicolás Herrera', 'Regina Navarro', 'Daniel Reyes',
-                            'Fernanda Vega', 'Alejandro Cruz'
-                        ].map((n, i) => createStudent(n, i))
-                    },
-                    {
-                        id: 'grp_robotica',
-                        name: 'Taller de Robótica',
-                        students: [
-                            'Equipo Alfa', 'Equipo Beta', 'Equipo Gamma', 'Equipo Delta',
-                            'Equipo Orión', 'Equipo Nova', 'Equipo Quásar', 'Equipo Pulsar'
-                        ].map((n, i) => createStudent(n, i))
-                    }
-                ],
-                currentGroupId: 'grp_1a',
+                groups: [initialGroup1, initialGroup2],
+                currentGroupId: initialGroup1.id,
                 mode: 'wheel', // 'wheel' | 'marbles' | 'rockets' | 'boxes'
                 winnerCount: 1,
                 noRepeat: true,
@@ -650,7 +663,7 @@
             }
 
             /* =====================================================================
-             * 4. REFERENCIAS AL DOM
+             * 4. REFERENCIAS DEL DOM Y NOTIFICACIONES TOAST
              * ===================================================================== */
             const dom = {
                 groupSelect: document.getElementById('groupSelect'),
@@ -662,27 +675,24 @@
                 presentationLabel: document.getElementById('presentationLabel'),
                 mainStageColumn: document.getElementById('mainStageColumn'),
                 sidebarColumn: document.getElementById('sidebarColumn'),
-
                 modeTabs: document.querySelectorAll('.mode-tab'),
                 stageContainer: document.getElementById('stageContainer'),
                 stageBadge: document.getElementById('stageBadge'),
                 stageBadgeText: document.getElementById('stageBadgeText'),
                 gameCanvas: document.getElementById('gameCanvas'),
                 boxesStage: document.getElementById('boxesStage'),
-                boxesGrid: document.getElementById('boxesGrid'),
                 boxesInstruction: document.getElementById('boxesInstruction'),
+                boxesGrid: document.getElementById('boxesGrid'),
                 emptyStageNotice: document.getElementById('emptyStageNotice'),
                 btnQuickRestore: document.getElementById('btnQuickRestore'),
-
                 btnDecWinners: document.getElementById('btnDecWinners'),
                 btnIncWinners: document.getElementById('btnIncWinners'),
                 winnerCountDisplay: document.getElementById('winnerCountDisplay'),
                 toggleNoRepeat: document.getElementById('toggleNoRepeat'),
+                btnActionSecondary: document.getElementById('btnActionSecondary'),
                 btnStartGame: document.getElementById('btnStartGame'),
                 btnStartIcon: document.getElementById('btnStartIcon'),
                 btnStartText: document.getElementById('btnStartText'),
-                btnActionSecondary: document.getElementById('btnActionSecondary'),
-
                 activeCountBadge: document.getElementById('activeCountBadge'),
                 totalCountBadge: document.getElementById('totalCountBadge'),
                 btnRestoreAll: document.getElementById('btnRestoreAll'),
@@ -692,13 +702,11 @@
                 studentListContainer: document.getElementById('studentListContainer'),
                 historySummary: document.getElementById('historySummary'),
                 btnExportImport: document.getElementById('btnExportImport'),
-
                 winnerModal: document.getElementById('winnerModal'),
                 winnerModalSubtitle: document.getElementById('winnerModalSubtitle'),
                 winnerCardsContainer: document.getElementById('winnerCardsContainer'),
                 btnCopyWinners: document.getElementById('btnCopyWinners'),
                 btnCloseWinnerModal: document.getElementById('btnCloseWinnerModal'),
-
                 groupModal: document.getElementById('groupModal'),
                 btnCloseGroupModal: document.getElementById('btnCloseGroupModal'),
                 btnCancelGroupModal: document.getElementById('btnCancelGroupModal'),
@@ -710,92 +718,97 @@
                 bulkLineCount: document.getElementById('bulkLineCount'),
                 btnDownloadJson: document.getElementById('btnDownloadJson'),
                 inputImportJson: document.getElementById('inputImportJson'),
-
-                confettiCanvas: document.getElementById('confettiCanvas'),
-                toastContainer: document.getElementById('toastContainer')
+                toastContainer: document.getElementById('toastContainer'),
+                confettiCanvas: document.getElementById('confettiCanvas')
             };
 
-            /* =====================================================================
-             * 5. SISTEMA DE NOTIFICACIONES TOAST Y CONFETI
-             * ===================================================================== */
             function showToast(message, type = 'info') {
-                const toast = document.createElement('div');
                 const colors = {
-                    info: 'bg-slate-900 text-white border-slate-700',
+                    info: 'bg-slate-800 text-white border-slate-700',
                     success: 'bg-emerald-600 text-white border-emerald-500',
                     warning: 'bg-amber-500 text-slate-950 border-amber-400',
                     error: 'bg-rose-600 text-white border-rose-500'
                 };
-                toast.className = `pointer-events-auto px-4 py-2.5 rounded-xl shadow-lg border text-sm font-medium animate-pop ${colors[type] || colors.info}`;
-                toast.textContent = message;
-                dom.toastContainer.appendChild(toast);
+                const el = document.createElement('div');
+                el.className = `pointer-events-auto px-4 py-2.5 rounded-xl shadow-lg border text-sm font-semibold animate-pop ${colors[type] || colors.info}`;
+                el.textContent = message;
+                dom.toastContainer.appendChild(el);
                 setTimeout(() => {
-                    toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translateY(8px)';
-                    setTimeout(() => toast.remove(), 320);
+                    el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(6px)';
+                    setTimeout(() => el.remove(), 260);
                 }, 2600);
             }
 
-            // Confeti en canvas superpuesto
-            const confetti = {
-                particles: [],
-                raf: null,
-                ctx: dom.confettiCanvas.getContext('2d'),
-                launch() {
-                    const dpr = window.devicePixelRatio || 1;
-                    dom.confettiCanvas.width = window.innerWidth * dpr;
-                    dom.confettiCanvas.height = window.innerHeight * dpr;
-                    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                    this.particles = [];
-                    for (let i = 0; i < 130; i++) {
-                        this.particles.push({
-                            x: window.innerWidth * (0.2 + Math.random() * 0.6),
-                            y: window.innerHeight * 0.35 + (Math.random() - 0.5) * 60,
-                            vx: (Math.random() - 0.5) * 14,
-                            vy: -Math.random() * 13 - 4,
-                            size: 6 + Math.random() * 6,
-                            color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+            /* =====================================================================
+             * 5. MOTOR DE CONFETI PARA CELEBRACIÓN
+             * ===================================================================== */
+            const confetti = (() => {
+                const cCanvas = dom.confettiCanvas;
+                const cCtx = cCanvas.getContext('2d');
+                let pieces = [];
+                let rafId = null;
+
+                function resize() {
+                    cCanvas.width = window.innerWidth;
+                    cCanvas.height = window.innerHeight;
+                }
+                window.addEventListener('resize', resize);
+                resize();
+
+                function launch() {
+                    resize();
+                    for (let i = 0; i < 120; i++) {
+                        pieces.push({
+                            x: Math.random() * cCanvas.width,
+                            y: -20 - Math.random() * 200,
+                            w: 7 + Math.random() * 6,
+                            h: 5 + Math.random() * 6,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: 3 + Math.random() * 5,
                             rot: Math.random() * Math.PI * 2,
-                            vrot: (Math.random() - 0.5) * 0.25,
+                            vRot: (Math.random() - 0.5) * 0.25,
+                            color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
                             life: 1
                         });
                     }
-                    if (!this.raf) this.loop();
-                },
-                loop() {
-                    const ctx = this.ctx;
-                    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-                    let alive = false;
-                    for (const p of this.particles) {
+                    if (!rafId) tick();
+                }
+
+                function tick() {
+                    cCtx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+                    for (let i = pieces.length - 1; i >= 0; i--) {
+                        const p = pieces[i];
                         p.x += p.vx;
                         p.y += p.vy;
-                        p.vy += 0.32;
+                        p.vy += 0.08;
                         p.vx *= 0.99;
-                        p.rot += p.vrot;
-                        p.life -= 0.008;
-                        if (p.life > 0 && p.y < window.innerHeight + 30) {
-                            alive = true;
-                            ctx.save();
-                            ctx.globalAlpha = Math.max(0, p.life);
-                            ctx.translate(p.x, p.y);
-                            ctx.rotate(p.rot);
-                            ctx.fillStyle = p.color;
-                            ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.65);
-                            ctx.restore();
+                        p.rot += p.vRot;
+                        if (p.y > cCanvas.height + 30) {
+                            pieces.splice(i, 1);
+                            continue;
                         }
+                        cCtx.save();
+                        cCtx.translate(p.x, p.y);
+                        cCtx.rotate(p.rot);
+                        cCtx.fillStyle = p.color;
+                        cCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                        cCtx.restore();
                     }
-                    if (alive) {
-                        this.raf = requestAnimationFrame(() => this.loop());
+                    if (pieces.length > 0) {
+                        rafId = requestAnimationFrame(tick);
                     } else {
-                        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-                        this.raf = null;
+                        cCtx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+                        rafId = null;
                     }
                 }
-            };
+
+                return { launch };
+            })();
 
             /* =====================================================================
-             * 6. GESTIÓN DEL CANVAS RESPONSIVO Y BUCLE DE ANIMACIÓN
+             * 6. GESTIÓN RESPONSIVA DEL CANVAS PRINCIPAL
              * ===================================================================== */
             const ctx = dom.gameCanvas.getContext('2d');
             let canvasW = 600;
@@ -807,15 +820,19 @@
                     cancelAnimationFrame(activeRaf);
                     activeRaf = null;
                 }
+                if (typeof BoxesGame !== 'undefined' && BoxesGame.clearTimers) {
+                    BoxesGame.clearTimers();
+                }
             }
 
             function resizeCanvas() {
                 const rect = dom.stageContainer.getBoundingClientRect();
-                const dpr = window.devicePixelRatio || 1;
-                canvasW = Math.max(300, Math.floor(rect.width));
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvasW = Math.max(280, Math.floor(rect.width));
                 canvasH = Math.max(300, Math.floor(rect.height));
-                dom.gameCanvas.width = canvasW * dpr;
-                dom.gameCanvas.height = canvasH * dpr;
+
+                dom.gameCanvas.width = Math.floor(canvasW * dpr);
+                dom.gameCanvas.height = Math.floor(canvasH * dpr);
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
                 if (!state.isRunning) {
@@ -824,23 +841,27 @@
             }
 
             /* =====================================================================
-             * 7. MODO 1: RULETA CLÁSICA CON FÍSICA DE FRICCIÓN
+             * 7. MODO 1: RULETA CLÁSICA CON FÍSICA DE FRICCIÓN Y REBOTE
              * ===================================================================== */
             const WheelGame = {
-                angle: 0,
-                angularVelocity: 0,
-                lastSegmentIndex: -1,
-                flapperAngle: 0,
                 pool: [],
-                pickedInRound: [],
+                winners: [],
                 targetCount: 1,
-                pauseTimer: 0,
+                angle: 0,
+                velocity: 0,
+                lastSegmentIndex: -1,
+                pointerBounce: 0,
+                nextSpinTimer: null,
 
                 reset() {
+                    if (this.nextSpinTimer) {
+                        clearTimeout(this.nextSpinTimer);
+                        this.nextSpinTimer = null;
+                    }
                     this.pool = getActiveStudents();
-                    this.pickedInRound = [];
-                    this.angularVelocity = 0;
-                    this.flapperAngle = 0;
+                    this.winners = [];
+                    this.velocity = 0;
+                    this.pointerBounce = 0;
                     this.draw();
                 },
 
@@ -848,181 +869,170 @@
                     const active = getActiveStudents();
                     if (active.length === 0) return;
                     this.pool = active.slice();
-                    this.pickedInRound = [];
-                    this.targetCount = Math.min(state.winnerCount, this.pool.length);
+                    this.winners = [];
+                    this.targetCount = Math.min(state.winnerCount, active.length);
                     state.isRunning = true;
                     updateControlsUI();
                     this.launchSpin();
                 },
 
                 launchSpin() {
-                    setStageBadge(`Girando... (${this.pickedInRound.length}/${this.targetCount} elegidos)`);
-                    this.angularVelocity = 0.32 + Math.random() * 0.22;
+                    if (!state.isRunning || state.mode !== 'wheel') return;
+                    this.velocity = 0.34 + Math.random() * 0.22;
                     this.lastSegmentIndex = -1;
+                    setStageBadge(`Girando ruleta (${this.winners.length + 1}/${this.targetCount})...`);
                     this.loop();
                 },
 
                 loop() {
-                    // Física de desaceleración
-                    this.angle = (this.angle + this.angularVelocity) % (Math.PI * 2);
-                    this.angularVelocity *= 0.986;
+                    if (!state.isRunning || state.mode !== 'wheel') return;
 
-                    // Detectar paso por un pin divisor para sonido y rebote del indicador
-                    const n = this.pool.length;
-                    if (n > 0) {
-                        const sliceAngle = (Math.PI * 2) / n;
-                        // El puntero está en la parte superior (-Math.PI / 2)
-                        const pointerAngle = (Math.PI * 1.5 - this.angle + Math.PI * 4) % (Math.PI * 2);
-                        const segIndex = Math.floor(pointerAngle / sliceAngle) % n;
-                        if (segIndex !== this.lastSegmentIndex) {
-                            this.lastSegmentIndex = segIndex;
+                    this.angle = (this.angle + this.velocity) % (Math.PI * 2);
+                    this.velocity *= 0.986;
+                    this.pointerBounce *= 0.78;
+
+                    const count = this.pool.length;
+                    if (count > 0) {
+                        const segAngle = (Math.PI * 2) / count;
+                        const pointerWorld = ((Math.PI * 1.5 - this.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                        const currentIdx = Math.floor(pointerWorld / segAngle) % count;
+
+                        if (currentIdx !== this.lastSegmentIndex) {
+                            this.lastSegmentIndex = currentIdx;
+                            this.pointerBounce = Math.min(0.45, 0.16 + this.velocity * 0.9);
                             sound.playTick();
-                            this.flapperAngle = -0.45;
                         }
                     }
 
-                    // Retorno elástico del indicador
-                    this.flapperAngle *= 0.82;
-
                     this.draw();
 
-                    if (this.angularVelocity > 0.0022) {
+                    if (this.velocity > 0.0022) {
                         activeRaf = requestAnimationFrame(() => this.loop());
                     } else {
-                        // Detenido: determinar ganador actual
-                        this.angularVelocity = 0;
-                        const sliceAngle = (Math.PI * 2) / this.pool.length;
-                        const pointerAngle = (Math.PI * 1.5 - this.angle + Math.PI * 4) % (Math.PI * 2);
-                        const winnerIdx = Math.floor(pointerAngle / sliceAngle) % this.pool.length;
-                        const winner = this.pool[winnerIdx];
-                        this.pickedInRound.push(winner);
-                        sound.playGoal();
+                        this.velocity = 0;
+                        this.pointerBounce = 0;
+                        this.draw();
 
-                        if (this.pickedInRound.length < this.targetCount) {
-                            // Quitar temporalmente del disco para el siguiente giro
-                            setStageBadge(`¡Elegido: ${winner.name}! (${this.pickedInRound.length}/${this.targetCount})`);
-                            this.pool.splice(winnerIdx, 1);
-                            this.draw();
-                            setTimeout(() => {
-                                if (state.isRunning && state.mode === 'wheel') {
-                                    this.launchSpin();
-                                }
-                            }, 1100);
+                        const countNow = this.pool.length;
+                        const segAngle = (Math.PI * 2) / countNow;
+                        const pointerWorld = ((Math.PI * 1.5 - this.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                        const winnerIdx = Math.floor(pointerWorld / segAngle) % countNow;
+                        const chosen = this.pool[winnerIdx];
+
+                        if (chosen) {
+                            this.winners.push(chosen);
+                            sound.playGoal();
+                            setStageBadge(`¡Elegido ${this.winners.length}/${this.targetCount}: ${chosen.name}!`);
+
+                            if (this.winners.length >= this.targetCount) {
+                                this.nextSpinTimer = setTimeout(() => finishRound(this.winners), 650);
+                            } else {
+                                this.pool.splice(winnerIdx, 1);
+                                this.nextSpinTimer = setTimeout(() => {
+                                    if (state.isRunning && state.mode === 'wheel') {
+                                        this.launchSpin();
+                                    }
+                                }, 950);
+                            }
                         } else {
-                            finishRound(this.pickedInRound);
+                            finishRound(this.winners);
                         }
                     }
                 },
 
                 draw() {
                     ctx.clearRect(0, 0, canvasW, canvasH);
-                    const list = state.isRunning ? this.pool : getActiveStudents();
-                    if (list.length === 0) return;
+                    const students = this.pool.length > 0 ? this.pool : getActiveStudents();
+                    if (students.length === 0) return;
 
                     const cx = canvasW / 2;
-                    const cy = canvasH / 2 + 8;
+                    const cy = canvasH / 2 + 12;
                     const radius = Math.min(canvasW, canvasH) * 0.41;
-                    const sliceAngle = (Math.PI * 2) / list.length;
+                    const segAngle = (Math.PI * 2) / students.length;
 
-                    // Halo de brillo exterior
+                    // Halo decorativo exterior
                     ctx.save();
-                    const glow = ctx.createRadialGradient(cx, cy, radius * 0.85, cx, cy, radius * 1.15);
-                    glow.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
-                    glow.addColorStop(1, 'rgba(99, 102, 241, 0)');
-                    ctx.fillStyle = glow;
                     ctx.beginPath();
-                    ctx.arc(cx, cy, radius * 1.15, 0, Math.PI * 2);
+                    ctx.arc(cx, cy, radius + 12, 0, Math.PI * 2);
+                    ctx.fillStyle = '#0f172a';
                     ctx.fill();
+                    ctx.lineWidth = 6;
+                    ctx.strokeStyle = '#334155';
+                    ctx.stroke();
                     ctx.restore();
 
-                    // Dibujar segmentos de la ruleta
-                    ctx.save();
-                    ctx.translate(cx, cy);
-                    ctx.rotate(this.angle);
-
-                    for (let i = 0; i < list.length; i++) {
-                        const start = i * sliceAngle;
-                        const end = start + sliceAngle;
-                        const student = list[i];
+                    // Rebanadas de la ruleta
+                    for (let i = 0; i < students.length; i++) {
+                        const startA = this.angle + i * segAngle;
+                        const endA = startA + segAngle;
+                        const st = students[i];
 
                         ctx.beginPath();
-                        ctx.moveTo(0, 0);
-                        ctx.arc(0, 0, radius, start, end);
+                        ctx.moveTo(cx, cy);
+                        ctx.arc(cx, cy, radius, startA, endA);
                         ctx.closePath();
-                        ctx.fillStyle = student.color;
+                        ctx.fillStyle = st.color;
                         ctx.fill();
-                        ctx.lineWidth = 2;
-                        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+                        ctx.lineWidth = students.length > 24 ? 1 : 2;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
                         ctx.stroke();
 
-                        // Nombre del alumno
+                        // Texto del alumno
                         ctx.save();
-                        ctx.rotate(start + sliceAngle / 2);
+                        ctx.translate(cx, cy);
+                        ctx.rotate(startA + segAngle / 2);
                         ctx.textAlign = 'right';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = '#ffffff';
-                        const minFont = list.length > 24 ? 8.5 : 10;
-                        const fontSize = Math.max(minFont, Math.min(18, Math.floor((radius * 0.92) / Math.max(6, list.length * 0.85))));
+                        ctx.shadowColor = 'rgba(0,0,0,0.65)';
+                        ctx.shadowBlur = 3;
+
+                        const fontSize = students.length > 28 ? 10 : students.length > 18 ? 12 : 14;
                         ctx.font = `700 ${fontSize}px Inter, sans-serif`;
-                        ctx.shadowColor = 'rgba(0,0,0,0.45)';
-                        ctx.shadowBlur = 4;
-                        let label = student.name;
-                        const maxTextW = radius * 0.68;
-                        while (ctx.measureText(label).width > maxTextW && label.length > 3) {
+                        const maxTextW = radius * 0.72;
+                        let label = st.name;
+                        while (label.length > 3 && ctx.measureText(label).width > maxTextW) {
                             label = label.slice(0, -2) + '…';
                         }
-                        ctx.fillText(label, radius - 18, 0);
+                        ctx.fillText(label, radius - 14, 0);
                         ctx.restore();
 
-                        // Pin dorado en el borde
-                        const pinX = Math.cos(start) * (radius - 4);
-                        const pinY = Math.sin(start) * (radius - 4);
+                        // Pines metálicos en el borde
+                        const pinX = cx + Math.cos(startA) * (radius + 3);
+                        const pinY = cy + Math.sin(startA) * (radius + 3);
                         ctx.beginPath();
-                        ctx.arc(pinX, pinY, 4, 0, Math.PI * 2);
-                        ctx.fillStyle = '#fde047';
+                        ctx.arc(pinX, pinY, 3.2, 0, Math.PI * 2);
+                        ctx.fillStyle = '#f8fafc';
                         ctx.fill();
-                        ctx.strokeStyle = '#854d0e';
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
                     }
-
-                    // Aro exterior
-                    ctx.beginPath();
-                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-                    ctx.lineWidth = 8;
-                    ctx.strokeStyle = '#f8fafc';
-                    ctx.stroke();
 
                     // Centro de la ruleta
                     ctx.beginPath();
-                    ctx.arc(0, 0, radius * 0.16, 0, Math.PI * 2);
-                    ctx.fillStyle = '#1e293b';
+                    ctx.arc(cx, cy, Math.max(18, radius * 0.14), 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
                     ctx.fill();
-                    ctx.lineWidth = 5;
-                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = '#6366f1';
                     ctx.stroke();
 
-                    ctx.fillStyle = '#fde047';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, radius * 0.06, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillStyle = '#4f46e5';
+                    ctx.font = '700 13px Fredoka, Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('SPIN', cx, cy + 1);
 
-                    ctx.restore();
-
-                    // Indicador superior con rebote
+                    // Indicador superior (flecha con rebote)
                     ctx.save();
-                    ctx.translate(cx, cy - radius - 8);
-                    ctx.rotate(this.flapperAngle);
+                    ctx.translate(cx, cy - radius - 10);
+                    ctx.rotate(-this.pointerBounce);
                     ctx.beginPath();
-                    ctx.moveTo(0, 28);
+                    ctx.moveTo(0, 26);
                     ctx.lineTo(-14, -6);
                     ctx.lineTo(14, -6);
                     ctx.closePath();
                     ctx.fillStyle = '#facc15';
-                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                    ctx.shadowBlur = 8;
                     ctx.fill();
-                    ctx.lineWidth = 2.5;
+                    ctx.lineWidth = 3;
                     ctx.strokeStyle = '#ffffff';
                     ctx.stroke();
                     ctx.restore();
@@ -1030,26 +1040,28 @@
             };
 
             /* =====================================================================
-             * 8. MODO 2: CARRERA DE CANICAS (CIRCUITO VERTICAL LARGO ~11-14s)
+             * 8. MODO 2: CARRERA DE CANICAS (CIRCUITO COMPLEJO + MOLINOS GIRATORIOS)
              * ===================================================================== */
             const MarblesGame = {
-                worldHeight: 2380,
+                worldHeight: 3250,
                 cameraY: 0,
                 pegs: [],
                 ramps: [],
                 bumpers: [],
+                spinners: [],
                 marbles: [],
                 winners: [],
                 targetCount: 1,
                 time: 0,
                 lastFrameTime: 0,
-                finishY: 2290,
+                finishY: 3155,
 
                 buildBoard() {
                     this.pegs = [];
                     this.ramps = [];
                     this.bumpers = [];
-                    this.finishY = this.worldHeight - 90;
+                    this.spinners = [];
+                    this.finishY = this.worldHeight - 95;
 
                     const wallLeft = 18;
                     const wallRight = canvasW - 34; // Espacio para el minimapa derecho
@@ -1070,34 +1082,61 @@
                     };
 
                     const baseCols = Math.max(7, Math.min(12, Math.floor(usableW / 54)));
+                    const armBase = Math.max(42, Math.min(72, usableW * 0.13));
 
-                    // ZONA 1: Matriz Plinko inicial (y: 150 - 610)
-                    addPegGrid(155, 8, baseCols, 62);
-
-                    // ZONA 2: Rampas inclinadas en zig-zag con huecos (y: 700 - 1170)
-                    this.ramps.push(
-                        { x1: wallLeft + 6, y1: 720, x2: wallLeft + usableW * 0.62, y2: 810 },
-                        { x1: wallRight - 6, y1: 870, x2: wallLeft + usableW * 0.38, y2: 960 },
-                        { x1: wallLeft + 6, y1: 1020, x2: wallLeft + usableW * 0.56, y2: 1105 },
-                        { x1: wallRight - 6, y1: 1030, x2: wallLeft + usableW * 0.68, y2: 1105 }
+                    // ZONA 1: Matriz Plinko inicial + Par de molinos de entrada (y: 145 - 690)
+                    addPegGrid(145, 5, baseCols, 58);
+                    this.spinners.push(
+                        { x: wallLeft + usableW * 0.28, y: 505, armLen: armBase, blades: 4, angle: 0.2, omega: 0.036, color: '#f59e0b' },
+                        { x: wallLeft + usableW * 0.72, y: 505, armLen: armBase, blades: 4, angle: 0.9, omega: -0.036, color: '#ec4899' }
                     );
-                    // Clavijas de apoyo entre rampas
-                    addPegGrid(790, 2, Math.max(5, baseCols - 2), 145);
+                    addPegGrid(615, 2, baseCols, 58);
 
-                    // ZONA 3: Deflectores móviles y diamantes (y: 1200 - 1700)
-                    addPegGrid(1200, 6, baseCols, 76);
+                    // ZONA 2: Laberinto de rampas en zig-zag con molino central (y: 740 - 1340)
+                    this.ramps.push(
+                        { x1: wallLeft + 6, y1: 750, x2: wallLeft + usableW * 0.60, y2: 845 },
+                        { x1: wallRight - 6, y1: 915, x2: wallLeft + usableW * 0.40, y2: 1010 },
+                        { x1: wallLeft + 6, y1: 1085, x2: wallLeft + usableW * 0.48, y2: 1175 },
+                        { x1: wallRight - 6, y1: 1085, x2: wallLeft + usableW * 0.64, y2: 1175 }
+                    );
+                    this.spinners.push(
+                        { x: wallLeft + usableW * 0.50, y: 1265, armLen: armBase * 1.15, blades: 3, angle: 0, omega: 0.045, color: '#38bdf8' }
+                    );
+                    addPegGrid(835, 2, Math.max(5, baseCols - 3), 165);
+
+                    // ZONA 3: "La Licuadora" — Cámara de molinos giratorios escalonados (y: 1390 - 1920)
+                    this.spinners.push(
+                        { x: wallLeft + usableW * 0.25, y: 1455, armLen: armBase * 0.95, blades: 4, angle: 0.4, omega: -0.042, color: '#a855f7' },
+                        { x: wallLeft + usableW * 0.75, y: 1455, armLen: armBase * 0.95, blades: 4, angle: 1.1, omega: 0.042, color: '#10b981' },
+                        { x: wallLeft + usableW * 0.50, y: 1630, armLen: armBase * 1.1, blades: 4, angle: 0.0, omega: -0.048, color: '#f43f5e' },
+                        { x: wallLeft + usableW * 0.28, y: 1805, armLen: armBase * 0.95, blades: 3, angle: 0.5, omega: 0.04, color: '#06b6d4' },
+                        { x: wallLeft + usableW * 0.72, y: 1805, armLen: armBase * 0.95, blades: 3, angle: 1.4, omega: -0.04, color: '#eab308' }
+                    );
+                    addPegGrid(1535, 2, Math.max(5, baseCols - 2), 185);
+
+                    // ZONA 4: Embudo doble + Deflectores móviles (y: 1930 - 2520)
+                    this.ramps.push(
+                        { x1: wallLeft + 6, y1: 1945, x2: wallLeft + usableW * 0.34, y2: 2035 },
+                        { x1: wallRight - 6, y1: 1945, x2: wallLeft + usableW * 0.66, y2: 2035 }
+                    );
+                    addPegGrid(2075, 5, baseCols, 72);
                     this.bumpers.push(
-                        { baseX: wallLeft + usableW * 0.32, x: wallLeft + usableW * 0.32, y: 1275, r: 14, phase: 0, amp: Math.min(70, usableW * 0.14) },
-                        { baseX: wallLeft + usableW * 0.68, x: wallLeft + usableW * 0.68, y: 1425, r: 14, phase: Math.PI, amp: Math.min(70, usableW * 0.14) },
-                        { baseX: wallLeft + usableW * 0.50, x: wallLeft + usableW * 0.50, y: 1580, r: 15, phase: Math.PI / 2, amp: Math.min(95, usableW * 0.2) }
+                        { baseX: wallLeft + usableW * 0.30, x: wallLeft + usableW * 0.30, y: 2150, r: 14, phase: 0, amp: Math.min(72, usableW * 0.15) },
+                        { baseX: wallLeft + usableW * 0.70, x: wallLeft + usableW * 0.70, y: 2295, r: 14, phase: Math.PI, amp: Math.min(72, usableW * 0.15) },
+                        { baseX: wallLeft + usableW * 0.50, x: wallLeft + usableW * 0.50, y: 2445, r: 15, phase: Math.PI / 2, amp: Math.min(98, usableW * 0.21) }
                     );
 
-                    // ZONA 4: Embudo suave + recta final Plinko (y: 1730 - 2210)
+                    // ZONA 5: Recta Final con Molinos Guardianes antes de la meta (y: 2560 - 3080)
                     this.ramps.push(
-                        { x1: wallLeft + 6, y1: 1715, x2: wallLeft + usableW * 0.30, y2: 1785 },
-                        { x1: wallRight - 6, y1: 1715, x2: wallLeft + usableW * 0.70, y2: 1785 }
+                        { x1: wallLeft + 6, y1: 2555, x2: wallLeft + usableW * 0.26, y2: 2635 },
+                        { x1: wallRight - 6, y1: 2555, x2: wallLeft + usableW * 0.74, y2: 2635 }
                     );
-                    addPegGrid(1820, 7, baseCols, 58);
+                    addPegGrid(2655, 4, baseCols, 58);
+                    this.spinners.push(
+                        { x: wallLeft + usableW * 0.32, y: 2945, armLen: armBase * 0.92, blades: 4, angle: 0.3, omega: 0.044, color: '#f97316' },
+                        { x: wallLeft + usableW * 0.68, y: 2945, armLen: armBase * 0.92, blades: 4, angle: 0.8, omega: -0.044, color: '#6366f1' }
+                    );
+                    addPegGrid(3045, 2, baseCols, 46);
                 },
 
                 getMarbleRadius(count) {
@@ -1186,23 +1225,26 @@
                     const wallLeft = 18;
                     const wallRight = canvasW - 34;
 
-                    // Actualizar deflectores móviles
+                    // Actualizar deflectores móviles y molinos giratorios
                     for (const b of this.bumpers) {
                         b.x = b.baseX + Math.sin(this.time + b.phase) * b.amp;
                     }
+                    for (const sp of this.spinners) {
+                        sp.angle += sp.omega * dt;
+                    }
 
-                    // Física con sub-stepping y velocidad terminal controlada (~11-14s total)
-                    const subSteps = 3;
-                    const gravity = (0.115 * dt) / subSteps;
-                    const maxVy = 4.25;
-                    const maxVx = 4.8;
+                    // Física con sub-stepping para colisiones precisas con aspas giratorias
+                    const subSteps = 4;
+                    const gravity = (0.125 * dt) / subSteps;
+                    const maxVy = 4.65;
+                    const maxVx = 5.6;
 
                     for (let step = 0; step < subSteps; step++) {
                         for (const m of this.marbles) {
                             if (m.finished) continue;
 
                             m.vy = Math.min(maxVy, m.vy + gravity);
-                            m.vx = Math.max(-maxVx, Math.min(maxVx, m.vx * 0.998));
+                            m.vx = Math.max(-maxVx, Math.min(maxVx, m.vx * 0.997));
                             m.x += (m.vx * dt) / subSteps;
                             m.y += (m.vy * dt) / subSteps;
 
@@ -1215,7 +1257,7 @@
                                 m.vx = -Math.abs(m.vx) * 0.72 - 0.35;
                             }
 
-                            // Colisión con rampas inclinadas (segmentos)
+                            // Colisión con rampas inclinadas
                             for (const rm of this.ramps) {
                                 const dx = rm.x2 - rm.x1;
                                 const dy = rm.y2 - rm.y1;
@@ -1238,9 +1280,55 @@
                                     if (dot < 0) {
                                         m.vx = (m.vx - 1.65 * dot * nx) * 0.82;
                                         m.vy = (m.vy - 1.65 * dot * ny) * 0.82;
-                                        // Impulso ligero hacia abajo por la pendiente
                                         const slopeSign = rm.x2 > rm.x1 ? 1 : -1;
-                                        m.vx += slopeSign * 0.25;
+                                        m.vx += slopeSign * 0.28;
+                                    }
+                                }
+                            }
+
+                            // Colisión con obstáculos giratorios (molinos con empuje tangencial)
+                            for (const sp of this.spinners) {
+                                if (Math.abs(m.y - sp.y) > sp.armLen + m.r + 10) continue;
+                                if (Math.abs(m.x - sp.x) > sp.armLen + m.r + 10) continue;
+
+                                for (let bIdx = 0; bIdx < sp.blades; bIdx++) {
+                                    const a = sp.angle + (bIdx * Math.PI * 2) / sp.blades;
+                                    const cosA = Math.cos(a);
+                                    const sinA = Math.sin(a);
+                                    const x2 = sp.x + cosA * sp.armLen;
+                                    const y2 = sp.y + sinA * sp.armLen;
+
+                                    const dx = x2 - sp.x;
+                                    const dy = y2 - sp.y;
+                                    const lenSq = dx * dx + dy * dy;
+                                    const t = Math.max(0, Math.min(1, ((m.x - sp.x) * dx + (m.y - sp.y) * dy) / lenSq));
+                                    const cx = sp.x + t * dx;
+                                    const cy = sp.y + t * dy;
+                                    const distX = m.x - cx;
+                                    const distY = m.y - cy;
+                                    const distSq = distX * distX + distY * distY;
+                                    const minDist = m.r + 5;
+
+                                    if (distSq < minDist * minDist && distSq > 0.0001) {
+                                        const dist = Math.sqrt(distSq);
+                                        const nx = distX / dist;
+                                        const ny = distY / dist;
+                                        m.x += nx * (minDist - dist);
+                                        m.y += ny * (minDist - dist);
+
+                                        // Velocidad tangencial del aspa en el punto de contacto
+                                        const armDist = t * sp.armLen;
+                                        const bladeVx = -sinA * sp.omega * armDist * 1.45;
+                                        const bladeVy = cosA * sp.omega * armDist * 1.45;
+
+                                        const relVx = m.vx - bladeVx;
+                                        const relVy = m.vy - bladeVy;
+                                        const dot = relVx * nx + relVy * ny;
+                                        if (dot < 0) {
+                                            m.vx = bladeVx + (relVx - 1.75 * dot * nx) * 0.84;
+                                            m.vy = Math.min(maxVy, bladeVy + (relVy - 1.75 * dot * ny) * 0.84);
+                                            if (Math.random() < 0.16) sound.playBounce();
+                                        }
                                     }
                                 }
                             }
@@ -1265,7 +1353,7 @@
                                         m.vx = (m.vx - 2 * dot * nx) * 0.68 + (Math.random() - 0.5) * 0.85;
                                         m.vy = (m.vy - 2 * dot * ny) * 0.64;
                                         p.glow = 1;
-                                        if (Math.random() < 0.14) sound.playBounce();
+                                        if (Math.random() < 0.12) sound.playBounce();
                                     }
                                 }
                             }
@@ -1282,8 +1370,8 @@
                                     const ny = dy / dist;
                                     m.x += nx * (minDist - dist);
                                     m.y += ny * (minDist - dist);
-                                    m.vx = nx * 4.4 + (Math.random() - 0.5);
-                                    m.vy = Math.min(maxVy, ny * 3.8);
+                                    m.vx = nx * 4.5 + (Math.random() - 0.5);
+                                    m.vy = Math.min(maxVy, ny * 3.9);
                                     sound.playBounce();
                                 }
                             }
@@ -1332,11 +1420,11 @@
                         if (m.finished) continue;
                         if (!leadMarble || m.y > leadMarble.y) leadMarble = m;
 
-                        if (Math.abs(m.vx) + Math.abs(m.vy) < 0.32) {
+                        if (Math.abs(m.vx) + Math.abs(m.vy) < 0.35) {
                             m.stuckFrames++;
-                            if (m.stuckFrames > 20) {
-                                m.vx += (Math.random() - 0.5) * 3.0;
-                                m.vy += 1.4;
+                            if (m.stuckFrames > 18) {
+                                m.vx += (Math.random() - 0.5) * 3.4;
+                                m.vy += 1.6;
                                 m.stuckFrames = 0;
                             }
                         } else {
@@ -1368,7 +1456,6 @@
                         }
                     }
 
-                    // Atenuar brillo de pegs
                     for (const p of this.pegs) {
                         if (p.glow > 0) p.glow = Math.max(0, p.glow - 0.06 * dt);
                     }
@@ -1392,20 +1479,25 @@
                     ctx.fillRect(0, 0, wallLeft, this.worldHeight);
                     ctx.fillRect(wallRight, 0, canvasW - wallRight, this.worldHeight);
 
-                    // Marcadores de distancia (25%, 50%, 75%)
+                    // Marcadores de zonas del circuito
                     ctx.strokeStyle = 'rgba(148,163,184,0.14)';
                     ctx.setLineDash([8, 8]);
                     ctx.lineWidth = 1.5;
                     ctx.font = '700 11px Inter, sans-serif';
-                    ctx.fillStyle = 'rgba(148,163,184,0.45)';
+                    ctx.fillStyle = 'rgba(148,163,184,0.48)';
                     ctx.textAlign = 'left';
-                    [0.25, 0.5, 0.75].forEach(frac => {
-                        const y = Math.floor(this.finishY * frac);
+                    [
+                        { y: 730, label: 'ZONA 2 — RAMPAS EN ZIG-ZAG' },
+                        { y: 1375, label: 'ZONA 3 — CÁMARA DE MOLINOS' },
+                        { y: 1930, label: 'ZONA 4 — EMBUDO Y DEFLECTORES' },
+                        { y: 2540, label: 'ZONA 5 — RECTA FINAL' }
+                    ].forEach(z => {
+                        if (z.y < this.cameraY - 30 || z.y > this.cameraY + canvasH + 30) return;
                         ctx.beginPath();
-                        ctx.moveTo(wallLeft, y);
-                        ctx.lineTo(wallRight, y);
+                        ctx.moveTo(wallLeft, z.y);
+                        ctx.lineTo(wallRight, z.y);
                         ctx.stroke();
-                        ctx.fillText(`${Math.round(frac * 100)}% DEL RECORRIDO`, wallLeft + 10, y - 6);
+                        ctx.fillText(z.label, wallLeft + 10, z.y - 6);
                     });
                     ctx.setLineDash([]);
 
@@ -1438,7 +1530,45 @@
                         ctx.stroke();
                     }
 
-                    // Clavijas visibles en el viewport
+                    // Obstáculos giratorios (molinos)
+                    for (const sp of this.spinners) {
+                        if (sp.y + sp.armLen < this.cameraY - 20 || sp.y - sp.armLen > this.cameraY + canvasH + 20) continue;
+                        ctx.save();
+                        ctx.translate(sp.x, sp.y);
+                        ctx.rotate(sp.angle);
+
+                        for (let bIdx = 0; bIdx < sp.blades; bIdx++) {
+                            const a = (bIdx * Math.PI * 2) / sp.blades;
+                            ctx.beginPath();
+                            ctx.moveTo(0, 0);
+                            ctx.lineTo(Math.cos(a) * sp.armLen, Math.sin(a) * sp.armLen);
+                            ctx.lineWidth = 10;
+                            ctx.lineCap = 'round';
+                            ctx.strokeStyle = sp.color;
+                            ctx.stroke();
+
+                            ctx.lineWidth = 3;
+                            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                            ctx.stroke();
+                        }
+
+                        // Eje central del molino
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fill();
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = '#f8fafc';
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = sp.color;
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    // Clavijas visibles
                     for (const p of this.pegs) {
                         if (p.y < this.cameraY - 20 || p.y > this.cameraY + canvasH + 20) continue;
                         ctx.beginPath();
@@ -1506,13 +1636,11 @@
                     ctx.fill();
                     ctx.stroke();
 
-                    // Ventana visible de la cámara en el minimapa
                     const viewTop = mapTop + (this.cameraY / this.worldHeight) * mapH;
                     const viewH = Math.max(14, (canvasH / this.worldHeight) * mapH);
                     ctx.fillStyle = 'rgba(99, 102, 241, 0.35)';
                     ctx.fillRect(mapX + 1, viewTop, 10, viewH);
 
-                    // Puntos de cada canica en el minimapa
                     for (const m of this.marbles) {
                         const my = mapTop + Math.min(1, m.y / this.finishY) * mapH;
                         ctx.beginPath();
@@ -1524,26 +1652,32 @@
             };
 
             /* =====================================================================
-             * 9. MODO 3: CARRERA DE COHETES (PISTA LARGA ~11-14s CON CÁMARA Y MINIMAPA)
+             * 9. MODO 3: CARRERA DE COHETES (DESGRACIAS ESPACIALES + PISTA LARGA)
              * ===================================================================== */
             const RocketsGame = {
                 stars: [],
                 racers: [],
                 winners: [],
+                meteors: [],
+                lasers: [],
+                ufos: [],
+                particles: [],
+                eventFeed: [],
+                hazardTimers: { meteor: 45, laser: 95, ufo: 145 },
                 targetCount: 1,
                 startX: 70,
-                finishX: 3350, // Recorrido largo para durar 11-14 segundos
+                finishX: 5200, // Recorrido largo (~16-20s) lleno de remontadas y caos espacial
                 cameraX: 0,
                 lastFrameTime: 0,
 
                 initStars() {
                     this.stars = [];
-                    for (let i = 0; i < 85; i++) {
+                    for (let i = 0; i < 95; i++) {
                         this.stars.push({
                             x: Math.random() * canvasW,
                             y: Math.random() * canvasH,
-                            r: 0.8 + Math.random() * 1.9,
-                            speed: 0.4 + Math.random() * 2.2
+                            r: 0.8 + Math.random() * 2.0,
+                            speed: 0.5 + Math.random() * 2.4
                         });
                     }
                 },
@@ -1551,22 +1685,114 @@
                 setupRacers() {
                     const active = getActiveStudents();
                     this.cameraX = 0;
-                    const topPad = 56; // Espacio para el minimapa superior
-                    const bottomPad = 18;
+                    this.meteors = [];
+                    this.lasers = [];
+                    this.ufos = [];
+                    this.particles = [];
+                    this.eventFeed = [];
+                    this.hazardTimers = { meteor: 40, laser: 90, ufo: 135 };
+
+                    const topPad = 56;
+                    const bottomPad = 24;
                     const laneH = (canvasH - topPad - bottomPad) / Math.max(1, active.length);
 
                     this.racers = active.map((s, i) => ({
                         student: s,
                         x: this.startX,
                         y: topPad + laneH * i + laneH / 2,
-                        speed: 3.6 + Math.random() * 0.8,
-                        targetSpeed: 3.8 + Math.random() * 0.9,
-                        changeTimer: 30 + Math.random() * 70,
+                        baseY: topPad + laneH * i + laneH / 2,
+                        speed: 4.1 + Math.random() * 0.8,
+                        targetSpeed: 4.2 + Math.random() * 1.1,
+                        changeTimer: 30 + Math.random() * 65,
                         turbo: 0,
-                        slow: 0,
+                        stun: 0,
+                        stunType: null, // 'meteor' | 'laser'
+                        abductedBy: null,
+                        shake: 0,
                         finished: false,
                         laneH
                     }));
+                },
+
+                pushEvent(text, color = '#facc15') {
+                    this.eventFeed.unshift({ text, color, life: 210 });
+                    if (this.eventFeed.length > 3) this.eventFeed.pop();
+                },
+
+                spawnParticles(x, y, color, count = 16, speed = 5) {
+                    for (let i = 0; i < count; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const sp = (0.4 + Math.random()) * speed;
+                        this.particles.push({
+                            x,
+                            y,
+                            vx: Math.cos(a) * sp,
+                            vy: Math.sin(a) * sp,
+                            r: 2 + Math.random() * 3.5,
+                            color,
+                            life: 1
+                        });
+                    }
+                },
+
+                getActivePack(onlyFront = false) {
+                    const alive = this.racers.filter(r => !r.finished && !r.abductedBy);
+                    if (!onlyFront || alive.length <= 4) return alive;
+                    return alive.slice().sort((a, b) => b.x - a.x).slice(0, Math.min(10, alive.length));
+                },
+
+                spawnMeteor() {
+                    const pack = this.getActivePack(true);
+                    if (pack.length === 0) return;
+                    const target = pack[Math.floor(Math.random() * pack.length)];
+                    const fromTop = Math.random() < 0.5;
+                    const spawnX = Math.max(this.cameraX + 120, target.x + 170 + Math.random() * 140);
+                    const spawnY = fromTop ? 46 : canvasH - 18;
+                    const vx = -(2.2 + Math.random() * 2.4);
+                    const vy = (fromTop ? 1 : -1) * (2.6 + Math.random() * 2.2);
+                    this.meteors.push({
+                        x: spawnX,
+                        y: spawnY,
+                        vx,
+                        vy,
+                        r: 11 + Math.random() * 5,
+                        rot: Math.random() * Math.PI * 2,
+                        hitIds: new Set()
+                    });
+                },
+
+                spawnLaser() {
+                    const pack = this.getActivePack(true);
+                    if (pack.length === 0) return;
+                    const target = pack[Math.floor(Math.random() * pack.length)];
+                    this.lasers.push({
+                        y: target.baseY,
+                        warnTimer: 36,
+                        fireTimer: 26,
+                        hitIds: new Set()
+                    });
+                },
+
+                spawnUfo() {
+                    if (this.ufos.length >= 2) return;
+                    const pack = this.getActivePack(true);
+                    if (pack.length === 0) return;
+                    // Elegir a alguien del grupo puntero para máximo drama
+                    const target = pack[Math.floor(Math.random() * Math.min(6, pack.length))];
+                    if (target.x > this.finishX - 320) return; // Evitar abducción justo sobre la meta
+
+                    const ufo = {
+                        target,
+                        x: target.x + 60,
+                        y: -35,
+                        phase: 'approach', // 'approach' | 'beam' | 'escape'
+                        timer: 0,
+                        wobble: Math.random() * Math.PI * 2
+                    };
+                    target.abductedBy = ufo;
+                    this.ufos.push(ufo);
+                    sound.playUfo();
+                    this.pushEvent(`🛸 ¡Marcianitos secuestraron a ${target.student.name}!`, '#4ade80');
                 },
 
                 reset() {
@@ -1586,7 +1812,8 @@
                     this.lastFrameTime = performance.now();
                     state.isRunning = true;
                     updateControlsUI();
-                    setStageBadge(`¡Despegue! (0/${this.targetCount} en meta)`);
+                    setStageBadge(`¡Despegue! Cuidado con meteoritos y OVNIs (0/${this.targetCount})`);
+                    this.pushEvent('🚀 ¡Despegue! ¡Sobrevivan a los peligros espaciales!', '#38bdf8');
                     this.loop();
                 },
 
@@ -1597,56 +1824,87 @@
 
                     // Paralaje de estrellas
                     for (const st of this.stars) {
-                        st.x -= st.speed * 1.8 * dt;
+                        st.x -= st.speed * 2.1 * dt;
                         if (st.x < 0) {
                             st.x = canvasW;
                             st.y = Math.random() * canvasH;
                         }
                     }
 
-                    // Calcular posición del líder actual para efecto de carrera cerrada
+                    // Temporizadores de desgracias espaciales
+                    this.hazardTimers.meteor -= dt;
+                    if (this.hazardTimers.meteor <= 0) {
+                        this.spawnMeteor();
+                        this.hazardTimers.meteor = 32 + Math.random() * 34;
+                    }
+
+                    this.hazardTimers.laser -= dt;
+                    if (this.hazardTimers.laser <= 0) {
+                        this.spawnLaser();
+                        this.hazardTimers.laser = 85 + Math.random() * 65;
+                    }
+
+                    this.hazardTimers.ufo -= dt;
+                    if (this.hazardTimers.ufo <= 0) {
+                        this.spawnUfo();
+                        this.hazardTimers.ufo = 155 + Math.random() * 90;
+                    }
+
+                    // Calcular líder para rebufo y balance de emoción
                     let maxX = this.startX;
                     for (const r of this.racers) {
                         if (r.x > maxX) maxX = r.x;
                     }
 
-                    // Mover cohetes con cambios de ritmo, turbos y micro-meteoritos (~12-14s total)
+                    // Actualizar cohetes
                     let leadRacer = null;
                     for (const r of this.racers) {
                         if (r.finished) continue;
 
+                        if (r.abductedBy) {
+                            // Controlado por el OVNI
+                            r.shake = 6;
+                            if (!leadRacer || r.x > leadRacer.x) leadRacer = r;
+                            continue;
+                        }
+
+                        // Retorno suave al carril base tras una abducción
+                        r.y += (r.baseY - r.y) * 0.14 * dt;
+
+                        if (r.stun > 0) {
+                            r.stun -= dt;
+                            r.shake = Math.min(6, r.stun * 0.25);
+                            r.x = Math.max(this.startX, r.x - 0.65 * dt);
+                            if (!leadRacer || r.x > leadRacer.x) leadRacer = r;
+                            continue;
+                        }
+                        r.shake = 0;
+
                         r.changeTimer -= dt;
                         if (r.changeTimer <= 0) {
-                            r.targetSpeed = 2.8 + Math.random() * 2.4;
-                            // Pequeño rebufo para rezagados y mantener emoción
-                            if (maxX - r.x > 260) r.targetSpeed += 0.65;
-                            r.changeTimer = 45 + Math.random() * 85;
+                            r.targetSpeed = 3.2 + Math.random() * 2.6;
+                            if (maxX - r.x > 320) r.targetSpeed += 1.05; // Rebufo para remontadas
+                            r.changeTimer = 42 + Math.random() * 75;
                         }
 
-                        r.speed += (r.targetSpeed - r.speed) * 0.045 * dt;
+                        r.speed += (r.targetSpeed - r.speed) * 0.05 * dt;
 
-                        // Evento aleatorio de Turbo ⚡
-                        if (r.turbo <= 0 && r.slow <= 0 && Math.random() < 0.0045 * dt) {
-                            r.turbo = 44;
+                        // Turbo estelar positivo ⚡
+                        if (r.turbo <= 0 && Math.random() < 0.0055 * dt) {
+                            r.turbo = 48;
                             if (Math.random() < 0.35) sound.playTurbo();
-                        }
-                        // Evento ocasional de turbulencia espacial ☄️
-                        else if (r.turbo <= 0 && r.slow <= 0 && Math.random() < 0.0025 * dt) {
-                            r.slow = 34;
+                            if (r.x > maxX - 300 && Math.random() < 0.22) {
+                                this.pushEvent(`⚡ ¡${r.student.name} activó el hiper-turbo!`, '#38bdf8');
+                            }
                         }
 
-                        let modifier = 0;
+                        let bonus = 0;
                         if (r.turbo > 0) {
-                            modifier = 1.85;
+                            bonus = 2.55;
                             r.turbo -= dt;
-                        } else if (r.slow > 0) {
-                            modifier = -1.35;
-                            r.slow -= dt;
                         }
 
-                        const stepX = Math.max(1.2, r.speed + modifier) * dt;
-                        r.x += stepX;
-
+                        r.x += Math.max(1.4, r.speed + bonus) * dt;
                         if (!leadRacer || r.x > leadRacer.x) leadRacer = r;
 
                         if (r.x >= this.finishX) {
@@ -1654,7 +1912,8 @@
                             r.finished = true;
                             this.winners.push(r.student);
                             sound.playGoal();
-                            setStageBadge(`Llegaron: ${this.winners.length}/${this.targetCount} — ¡${r.student.name}!`);
+                            this.spawnParticles(r.x, r.y, '#facc15', 22, 6);
+                            setStageBadge(`En meta: ${this.winners.length}/${this.targetCount} — ¡${r.student.name}!`);
                             if (this.winners.length >= this.targetCount) {
                                 this.cameraX = Math.max(0, this.finishX - canvasW + 100);
                                 this.draw();
@@ -1664,9 +1923,110 @@
                         }
                     }
 
+                    // Actualizar Meteoritos ☄️
+                    for (let i = this.meteors.length - 1; i >= 0; i--) {
+                        const m = this.meteors[i];
+                        m.x += m.vx * dt;
+                        m.y += m.vy * dt;
+                        m.rot += 0.12 * dt;
+
+                        for (const r of this.racers) {
+                            if (r.finished || r.abductedBy || m.hitIds.has(r.student.id)) continue;
+                            const dx = m.x - r.x;
+                            const dy = m.y - r.y;
+                            if (dx * dx + dy * dy < (m.r + 14) * (m.r + 14)) {
+                                m.hitIds.add(r.student.id);
+                                r.stun = 44;
+                                r.stunType = 'meteor';
+                                r.turbo = 0;
+                                r.x = Math.max(this.startX, r.x - 75);
+                                sound.playMeteor();
+                                this.spawnParticles(r.x, r.y, '#fb923c', 18, 5.5);
+                                this.pushEvent(`☄️ ¡Meteorito impactó a ${r.student.name}!`, '#fb923c');
+                            }
+                        }
+
+                        if (m.y < 10 || m.y > canvasH + 30 || m.x < this.cameraX - 120) {
+                            this.meteors.splice(i, 1);
+                        }
+                    }
+
+                    // Actualizar Rayos Láser 🔫
+                    for (let i = this.lasers.length - 1; i >= 0; i--) {
+                        const l = this.lasers[i];
+                        if (l.warnTimer > 0) {
+                            l.warnTimer -= dt;
+                            if (l.warnTimer <= 0) sound.playLaser();
+                        } else {
+                            l.fireTimer -= dt;
+                            for (const r of this.racers) {
+                                if (r.finished || r.abductedBy || l.hitIds.has(r.student.id)) continue;
+                                if (r.x < this.cameraX - 30 || r.x > this.cameraX + canvasW + 30) continue;
+                                if (Math.abs(r.y - l.y) < Math.max(13, r.laneH * 0.65)) {
+                                    l.hitIds.add(r.student.id);
+                                    r.stun = 40;
+                                    r.stunType = 'laser';
+                                    r.turbo = 0;
+                                    r.x = Math.max(this.startX, r.x - 55);
+                                    this.spawnParticles(r.x, r.y, '#f43f5e', 16, 5);
+                                    this.pushEvent(`🔫 ¡Rayo láser alcanzó a ${r.student.name}!`, '#fb7185');
+                                }
+                            }
+                            if (l.fireTimer <= 0) this.lasers.splice(i, 1);
+                        }
+                    }
+
+                    // Actualizar OVNIs / Marcianitos secuestrando 🛸
+                    for (let i = this.ufos.length - 1; i >= 0; i--) {
+                        const u = this.ufos[i];
+                        u.wobble += 0.14 * dt;
+                        const t = u.target;
+
+                        if (u.phase === 'approach') {
+                            const goalY = Math.max(76, t.baseY - 62);
+                            u.x += (t.x - u.x) * 0.16 * dt;
+                            u.y += (goalY - u.y) * 0.16 * dt;
+                            if (Math.abs(u.y - goalY) < 8) {
+                                u.phase = 'beam';
+                                u.timer = 78; // ~1.3s de abducción y arrastre hacia atrás
+                            }
+                        } else if (u.phase === 'beam') {
+                            u.timer -= dt;
+                            u.x = Math.max(this.startX + 10, u.x - 2.35 * dt);
+                            t.x = u.x;
+                            t.y = u.y + 44 + Math.sin(u.wobble * 2) * 5;
+                            if (Math.random() < 0.3) {
+                                this.spawnParticles(t.x, t.y, '#4ade80', 1, 2.2);
+                            }
+                            if (u.timer <= 0) {
+                                t.abductedBy = null;
+                                t.stun = 12;
+                                t.stunType = null;
+                                u.phase = 'escape';
+                            }
+                        } else {
+                            u.y -= 6.5 * dt;
+                            u.x -= 2.2 * dt;
+                            if (u.y < -60) this.ufos.splice(i, 1);
+                        }
+                    }
+
+                    // Actualizar partículas y feed de eventos
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        const p = this.particles[i];
+                        p.x += p.vx * dt;
+                        p.y += p.vy * dt;
+                        p.life -= 0.032 * dt;
+                        if (p.life <= 0) this.particles.splice(i, 1);
+                    }
+                    for (let i = this.eventFeed.length - 1; i >= 0; i--) {
+                        this.eventFeed[i].life -= dt;
+                        if (this.eventFeed[i].life <= 0) this.eventFeed.splice(i, 1);
+                    }
+
                     // Cámara horizontal siguiendo al líder
                     if (leadRacer) {
-                        const targetCam = Math.max(0, Math.min(this.finishX - canvasW + 100, leadRacer.x - canvasW * 0.72));
+                        const targetCam = Math.max(0, Math.min(this.finishX - canvasW + 100, leadRacer.x - canvasW * 0.68));
                         this.cameraX += (targetCam - this.cameraX) * Math.min(1, 0.1 * dt);
                         const pct = Math.min(99, Math.floor(((leadRacer.x - this.startX) / (this.finishX - this.startX)) * 100));
                         if (this.winners.length === 0) {
@@ -1691,7 +2051,6 @@
                         ctx.fill();
                     }
 
-                    // Identificar a los 6 punteros para mostrar sus nombres completos sin saturar con 36 alumnos
                     const showAllNames = this.racers.length <= 16;
                     const topIds = new Set(
                         this.racers
@@ -1704,21 +2063,21 @@
                     ctx.save();
                     ctx.translate(-this.cameraX, 0);
 
-                    // Marcadores de distancia en la pista espacial
+                    // Marcadores de distancia
                     const trackSpan = this.finishX - this.startX;
-                    ctx.strokeStyle = 'rgba(148,163,184,0.16)';
+                    ctx.strokeStyle = 'rgba(148,163,184,0.15)';
                     ctx.setLineDash([6, 6]);
                     ctx.lineWidth = 1.5;
                     ctx.font = '700 11px Inter, sans-serif';
                     ctx.fillStyle = 'rgba(148,163,184,0.45)';
                     ctx.textAlign = 'center';
 
-                    for (let pct = 0; pct <= 100; pct += 20) {
+                    for (let pct = 0; pct <= 100; pct += 10) {
                         const mx = this.startX + (trackSpan * pct) / 100;
                         if (mx < this.cameraX - 60 || mx > this.cameraX + canvasW + 60) continue;
                         ctx.beginPath();
                         ctx.moveTo(mx, 50);
-                        ctx.lineTo(mx, canvasH - 14);
+                        ctx.lineTo(mx, canvasH - 16);
                         ctx.stroke();
                         if (pct > 0 && pct < 100) {
                             ctx.fillText(`${pct}%`, mx, canvasH - 4);
@@ -1728,7 +2087,7 @@
 
                     // Línea de meta ajedrezada vertical
                     const sq = 10;
-                    for (let y = 50; y < canvasH - 14; y += sq) {
+                    for (let y = 50; y < canvasH - 16; y += sq) {
                         const idx = Math.floor(y / sq);
                         ctx.fillStyle = idx % 2 === 0 ? '#ffffff' : '#1e293b';
                         ctx.fillRect(this.finishX, y, sq, sq);
@@ -1736,33 +2095,65 @@
                         ctx.fillRect(this.finishX + sq, y, sq, sq);
                     }
 
-                    // Dibujar carriles y cohetes
+                    // Rayos Láser (aviso y disparo)
+                    for (const l of this.lasers) {
+                        if (l.warnTimer > 0) {
+                            ctx.save();
+                            ctx.strokeStyle = Math.floor(l.warnTimer / 4) % 2 === 0 ? 'rgba(244, 63, 94, 0.85)' : 'rgba(250, 204, 21, 0.75)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([10, 8]);
+                            ctx.beginPath();
+                            ctx.moveTo(this.cameraX, l.y);
+                            ctx.lineTo(this.cameraX + canvasW, l.y);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            // Icono de alerta en el borde derecho
+                            ctx.fillStyle = '#f43f5e';
+                            ctx.font = '700 12px Inter, sans-serif';
+                            ctx.textAlign = 'right';
+                            ctx.fillText('⚠️ LÁSER', this.cameraX + canvasW - 14, l.y - 6);
+                            ctx.restore();
+                        } else {
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+                            ctx.fillRect(this.cameraX, l.y - 11, canvasW, 22);
+                            ctx.fillStyle = '#f43f5e';
+                            ctx.fillRect(this.cameraX, l.y - 5, canvasW, 10);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(this.cameraX, l.y - 2, canvasW, 4);
+                            ctx.restore();
+                        }
+                    }
+
+                    // Carriles y cohetes
                     for (const r of this.racers) {
                         const scale = Math.max(0.45, Math.min(1.0, r.laneH / 32));
-                        const isLeaderPack = topIds.has(r.student.id);
+                        const isLeaderPack = topIds.has(r.student.id) || r.abductedBy || r.stun > 0;
 
-                        // Línea guía sutil
-                        ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+                        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
                         ctx.lineWidth = 1;
                         ctx.beginPath();
-                        ctx.moveTo(this.startX, r.y);
-                        ctx.lineTo(this.finishX, r.y);
+                        ctx.moveTo(this.startX, r.baseY);
+                        ctx.lineTo(this.finishX, r.baseY);
                         ctx.stroke();
 
                         if (r.x < this.cameraX - 180 || r.x > this.cameraX + canvasW + 80) continue;
 
                         ctx.save();
-                        ctx.translate(r.x, r.y);
+                        const sx = r.shake > 0 ? (Math.random() - 0.5) * r.shake : 0;
+                        const sy = r.shake > 0 ? (Math.random() - 0.5) * r.shake : 0;
+                        ctx.translate(r.x + sx, r.y + sy);
+                        if (r.stun > 0) ctx.rotate(Math.sin(r.stun * 0.6) * 0.35);
 
                         // Llama de propulsión
-                        if (state.isRunning && !r.finished) {
-                            const flameLen = (r.turbo > 0 ? 32 : r.slow > 0 ? 7 : 15) * scale + Math.random() * 6;
+                        if (state.isRunning && !r.finished && r.stun <= 0 && !r.abductedBy) {
+                            const flameLen = (r.turbo > 0 ? 36 : 16) * scale + Math.random() * 6;
                             ctx.beginPath();
                             ctx.moveTo(-14 * scale, -5 * scale);
                             ctx.lineTo(-14 * scale - flameLen, 0);
                             ctx.lineTo(-14 * scale, 5 * scale);
                             ctx.closePath();
-                            ctx.fillStyle = r.turbo > 0 ? '#38bdf8' : r.slow > 0 ? '#94a3b8' : '#fb923c';
+                            ctx.fillStyle = r.turbo > 0 ? '#38bdf8' : '#fb923c';
                             ctx.fill();
                         }
 
@@ -1789,10 +2180,10 @@
                         ctx.lineTo(-14 * scale, 7 * scale);
                         ctx.quadraticCurveTo(8 * scale, 9 * scale, 18 * scale, 0);
                         ctx.closePath();
-                        ctx.fillStyle = r.student.color;
+                        ctx.fillStyle = r.stun > 0 ? '#94a3b8' : r.student.color;
                         ctx.fill();
                         ctx.lineWidth = r.finished ? 2.2 : 1.3;
-                        ctx.strokeStyle = r.finished ? '#facc15' : '#ffffff';
+                        ctx.strokeStyle = r.finished ? '#facc15' : (r.stun > 0 ? '#f43f5e' : '#ffffff');
                         ctx.stroke();
 
                         // Ventanilla
@@ -1801,9 +2192,9 @@
                         ctx.fillStyle = '#bae6fd';
                         ctx.fill();
 
-                        // Etiquetas inteligentes (legibles incluso con 36 alumnos)
+                        // Etiquetas
                         if (showAllNames || isLeaderPack || !state.isRunning) {
-                            const suffix = r.turbo > 0 ? ' ⚡' : r.slow > 0 ? ' ☄️' : '';
+                            const suffix = r.abductedBy ? ' 🛸' : r.stunType === 'meteor' ? ' 💥' : r.stunType === 'laser' ? ' ⚡' : r.turbo > 0 ? ' 🚀' : '';
                             const label = (showAllNames || isLeaderPack ? r.student.name : getInitials(r.student.name)) + suffix;
                             const fontSize = showAllNames
                                 ? Math.max(10, Math.min(13, Math.floor(r.laneH * 0.48)))
@@ -1811,25 +2202,23 @@
                             ctx.font = `700 ${fontSize}px Inter, sans-serif`;
 
                             if (!showAllNames && isLeaderPack && state.isRunning) {
-                                // Píldora oscura detrás del nombre de los punteros para máxima legibilidad
                                 const tw = ctx.measureText(label).width;
-                                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                                ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
                                 ctx.beginPath();
                                 ctx.roundRect(-24 * scale - tw - 10, -9, tw + 12, 18, 6);
                                 ctx.fill();
-                                ctx.strokeStyle = r.student.color;
+                                ctx.strokeStyle = r.abductedBy ? '#4ade80' : r.stun > 0 ? '#f43f5e' : r.student.color;
                                 ctx.lineWidth = 1;
                                 ctx.stroke();
                             }
 
-                            ctx.fillStyle = r.finished ? '#fde047' : (isLeaderPack ? '#ffffff' : 'rgba(226,232,240,0.82)');
+                            ctx.fillStyle = r.finished ? '#fde047' : '#ffffff';
                             ctx.textAlign = 'right';
                             ctx.textBaseline = 'middle';
                             ctx.shadowColor = 'rgba(0,0,0,0.9)';
                             ctx.shadowBlur = 3;
                             ctx.fillText(label, -22 * scale, 0);
                         } else {
-                            // Iniciales sutiles para el resto del pelotón
                             ctx.fillStyle = 'rgba(226,232,240,0.65)';
                             ctx.font = '600 8.5px Inter, sans-serif';
                             ctx.textAlign = 'right';
@@ -1840,9 +2229,113 @@
                         ctx.restore();
                     }
 
+                    // Dibujar Meteoritos en llamas ☄️
+                    for (const m of this.meteors) {
+                        ctx.save();
+                        ctx.translate(m.x, m.y);
+                        // Estela de fuego
+                        const tailGrad = ctx.createLinearGradient(0, 0, -m.vx * 11, -m.vy * 11);
+                        tailGrad.addColorStop(0, 'rgba(251, 146, 60, 0.9)');
+                        tailGrad.addColorStop(0.5, 'rgba(239, 68, 68, 0.5)');
+                        tailGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                        ctx.strokeStyle = tailGrad;
+                        ctx.lineWidth = m.r * 1.4;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(-m.vx * 10, -m.vy * 10);
+                        ctx.stroke();
+
+                        // Roca del meteorito
+                        ctx.rotate(m.rot);
+                        ctx.fillStyle = '#78350f';
+                        ctx.strokeStyle = '#fb923c';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        for (let k = 0; k < 7; k++) {
+                            const ang = (k / 7) * Math.PI * 2;
+                            const rad = m.r * (k % 2 === 0 ? 1 : 0.78);
+                            if (k === 0) ctx.moveTo(Math.cos(ang) * rad, Math.sin(ang) * rad);
+                            else ctx.lineTo(Math.cos(ang) * rad, Math.sin(ang) * rad);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+
+                    // Dibujar OVNIs con marcianitos y rayo tractor 🛸
+                    for (const u of this.ufos) {
+                        ctx.save();
+                        ctx.translate(u.x, u.y);
+
+                        // Rayo tractor verde
+                        if (u.phase === 'beam') {
+                            const beamGrad = ctx.createLinearGradient(0, 8, 0, 72);
+                            beamGrad.addColorStop(0, 'rgba(74, 222, 128, 0.72)');
+                            beamGrad.addColorStop(1, 'rgba(74, 222, 128, 0.05)');
+                            ctx.fillStyle = beamGrad;
+                            ctx.beginPath();
+                            ctx.moveTo(-10, 8);
+                            ctx.lineTo(10, 8);
+                            ctx.lineTo(30, 72);
+                            ctx.lineTo(-30, 72);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+
+                        // Cúpula con marcianito verde adentro
+                        ctx.beginPath();
+                        ctx.arc(0, -4, 12, Math.PI, 0);
+                        ctx.fillStyle = 'rgba(186, 230, 253, 0.75)';
+                        ctx.fill();
+                        ctx.strokeStyle = '#e0f2fe';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        // Cabeza del marcianito
+                        ctx.beginPath();
+                        ctx.arc(0, -7, 5, 0, Math.PI * 2);
+                        ctx.fillStyle = '#4ade80';
+                        ctx.fill();
+                        // Ojos negros del marcianito
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillRect(-2.5, -8.5, 1.8, 2.2);
+                        ctx.fillRect(1, -8.5, 1.8, 2.2);
+
+                        // Platillo metálico
+                        ctx.beginPath();
+                        ctx.ellipse(0, 2, 22, 7.5, 0, 0, Math.PI * 2);
+                        ctx.fillStyle = '#94a3b8';
+                        ctx.fill();
+                        ctx.strokeStyle = '#f8fafc';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        // Luces giratorias del platillo
+                        for (let lIdx = -2; lIdx <= 2; lIdx++) {
+                            ctx.beginPath();
+                            ctx.arc(lIdx * 7.5, 2.5, 2.2, 0, Math.PI * 2);
+                            ctx.fillStyle = (Math.floor(u.wobble * 2) + lIdx) % 2 === 0 ? '#4ade80' : '#facc15';
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    }
+
+                    // Partículas de explosiones y chispas
+                    for (const p of this.particles) {
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, p.life);
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
                     ctx.restore();
 
-                    // Minimapa horizontal superior de toda la carrera
+                    // Minimapa horizontal superior
                     const barPadX = 24;
                     const barY = 18;
                     const barW = canvasW - barPadX * 2;
@@ -1855,7 +2348,6 @@
                     ctx.fill();
                     ctx.stroke();
 
-                    // Bandera de meta en el minimapa
                     ctx.fillStyle = '#facc15';
                     ctx.fillRect(barPadX + barW - 5, barY + 2, 3, barH - 4);
 
@@ -1864,8 +2356,32 @@
                         const dx = barPadX + 6 + progress * (barW - 14);
                         ctx.beginPath();
                         ctx.arc(dx, barY + barH / 2, 3.5, 0, Math.PI * 2);
-                        ctx.fillStyle = r.finished ? '#facc15' : r.student.color;
+                        ctx.fillStyle = r.finished ? '#facc15' : r.abductedBy ? '#4ade80' : r.student.color;
                         ctx.fill();
+                    }
+
+                    // Noticiero espacial en vivo (esquina inferior izquierda)
+                    if (this.eventFeed.length > 0 && state.isRunning) {
+                        ctx.save();
+                        ctx.font = '700 12px Inter, sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        this.eventFeed.forEach((ev, idx) => {
+                            const alpha = Math.min(1, ev.life / 35);
+                            const y = canvasH - 22 - idx * 26;
+                            const tw = ctx.measureText(ev.text).width;
+                            ctx.globalAlpha = alpha;
+                            ctx.fillStyle = 'rgba(15, 23, 42, 0.84)';
+                            ctx.beginPath();
+                            ctx.roundRect(14, y - 11, tw + 20, 22, 11);
+                            ctx.fill();
+                            ctx.strokeStyle = ev.color;
+                            ctx.lineWidth = 1.2;
+                            ctx.stroke();
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText(ev.text, 24, y);
+                        });
+                        ctx.restore();
                     }
                 }
             };
@@ -2586,4 +3102,4 @@
         })();
     </script>
 </body>
-</html>  
+</html>
