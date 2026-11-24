@@ -122,6 +122,29 @@
             box-shadow: 0 0 24px rgba(245, 158, 11, 0.6);
         }
 
+        /* Animación de reflector/selección activa en Cajas 3D */
+        .mystery-card.spotlight {
+            z-index: 15;
+        }
+
+        .mystery-card.spotlight .mystery-card-front {
+            transform: scale(1.1) translateY(-4px);
+            border-color: #facc15;
+            background: linear-gradient(145deg, #6366f1, #a855f7);
+            box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.55), 0 0 26px rgba(250, 204, 21, 0.85);
+        }
+
+        @keyframes cardWinnerPulse {
+            0% { transform: scale(1); }
+            45% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        .mystery-card.picked-burst {
+            z-index: 20;
+            animation: cardWinnerPulse 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
         /* Scrollbar personalizada */
         .custom-scroll::-webkit-scrollbar {
             width: 6px;
@@ -258,13 +281,13 @@
                 <canvas id="gameCanvas"></canvas>
 
                 <!-- Contenedor HTML para el Modo Cajas Misteriosas -->
-                <div id="boxesStage" class="hidden w-full h-full p-4 sm:p-6 overflow-y-auto custom-scroll">
-                    <div class="text-center mb-4">
+                <div id="boxesStage" class="hidden w-full h-full p-3 sm:p-5 overflow-y-auto custom-scroll">
+                    <div class="text-center mb-3">
                         <p id="boxesInstruction" class="text-indigo-200 text-sm sm:text-base font-medium">
                             Haz clic en <span class="text-amber-300 font-bold">1</span> caja misteriosa para revelar al ganador
                         </p>
                     </div>
-                    <div id="boxesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 max-w-3xl mx-auto pb-4">
+                    <div id="boxesGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 sm:gap-3 max-w-4xl mx-auto pb-4">
                     </div>
                 </div>
 
@@ -574,11 +597,17 @@
                 groups: [
                     {
                         id: 'grp_1a',
-                        name: '1° A — Matemáticas',
+                        name: '1° A — Matemáticas (36)',
                         students: [
                             'Sofía Martínez', 'Diego Hernández', 'Valentina López', 'Mateo García',
                             'Camila Rodríguez', 'Sebastián Pérez', 'Isabella Torres', 'Lucas Ramírez',
-                            'Renata Flores', 'Emiliano Castro', 'Ximena Morales', 'Santiago Vargas'
+                            'Renata Flores', 'Emiliano Castro', 'Ximena Morales', 'Santiago Vargas',
+                            'Regina Castillo', 'Leonardo Ortiz', 'Victoria Silva', 'Matías Mendoza',
+                            'Mariana Ruiz', 'Alejandro Cruz', 'Romina Navarro', 'Daniel Reyes',
+                            'Fernanda Vega', 'Nicolás Herrera', 'Lucía Domínguez', 'Gabriel Romero',
+                            'Paulina Aguilar', 'Andrés Medina', 'Valeria Guerrero', 'Iker Delgado',
+                            'Natalia Campos', 'Bruno Salazar', 'Andrea Guzmán', 'Gael Vázquez',
+                            'Julieta Ramos', 'Thiago Chávez', 'Abril Peña', 'Dylan Serrano'
                         ].map((n, i) => createStudent(n, i))
                     },
                     {
@@ -929,7 +958,8 @@
                         ctx.textAlign = 'right';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = '#ffffff';
-                        const fontSize = Math.max(10, Math.min(18, Math.floor((radius * 0.9) / Math.max(6, list.length * 0.85))));
+                        const minFont = list.length > 24 ? 8.5 : 10;
+                        const fontSize = Math.max(minFont, Math.min(18, Math.floor((radius * 0.92) / Math.max(6, list.length * 0.85))));
                         ctx.font = `700 ${fontSize}px Inter, sans-serif`;
                         ctx.shadowColor = 'rgba(0,0,0,0.45)';
                         ctx.shadowBlur = 4;
@@ -997,71 +1027,103 @@
             };
 
             /* =====================================================================
-             * 8. MODO 2: CARRERA DE CANICAS (PLINKO / FÍSICA 2D)
+             * 8. MODO 2: CARRERA DE CANICAS (CIRCUITO VERTICAL LARGO ~11-14s)
              * ===================================================================== */
             const MarblesGame = {
+                worldHeight: 2380,
+                cameraY: 0,
                 pegs: [],
+                ramps: [],
                 bumpers: [],
                 marbles: [],
                 winners: [],
                 targetCount: 1,
                 time: 0,
-                finishY: 0,
+                lastFrameTime: 0,
+                finishY: 2290,
 
                 buildBoard() {
                     this.pegs = [];
+                    this.ramps = [];
                     this.bumpers = [];
-                    const padX = Math.max(44, canvasW * 0.09);
-                    const topY = 92;
-                    this.finishY = canvasH - 44;
-                    const usableH = this.finishY - topY - 40;
-                    const rows = 7;
-                    const cols = Math.max(7, Math.floor((canvasW - padX * 2) / 56));
-                    const spacingX = (canvasW - padX * 2) / (cols - 1);
-                    const spacingY = usableH / rows;
+                    this.finishY = this.worldHeight - 90;
 
-                    for (let r = 0; r < rows; r++) {
-                        const isOffset = r % 2 === 1;
-                        const count = isOffset ? cols - 1 : cols;
-                        for (let c = 0; c < count; c++) {
-                            const x = padX + c * spacingX + (isOffset ? spacingX / 2 : 0);
-                            const y = topY + r * spacingY;
-                            this.pegs.push({ x, y, r: 5.5, glow: 0 });
+                    const wallLeft = 18;
+                    const wallRight = canvasW - 34; // Espacio para el minimapa derecho
+                    const usableW = wallRight - wallLeft;
+                    const padX = Math.max(34, usableW * 0.08);
+
+                    const addPegGrid = (startY, rows, cols, spacingY) => {
+                        const spacingX = (usableW - padX * 2) / Math.max(1, cols - 1);
+                        for (let r = 0; r < rows; r++) {
+                            const isOffset = r % 2 === 1;
+                            const count = isOffset ? cols - 1 : cols;
+                            for (let c = 0; c < count; c++) {
+                                const x = wallLeft + padX + c * spacingX + (isOffset ? spacingX / 2 : 0);
+                                const y = startY + r * spacingY;
+                                this.pegs.push({ x, y, r: 5, glow: 0 });
+                            }
                         }
-                    }
+                    };
 
-                    // Dos deflectores móviles para evitar atascos y agregar emoción
-                    this.bumpers.push({
-                        baseX: canvasW * 0.35,
-                        x: canvasW * 0.35,
-                        y: topY + usableH * 0.45,
-                        r: 13,
-                        phase: 0,
-                        amp: Math.min(55, canvasW * 0.1)
-                    });
-                    this.bumpers.push({
-                        baseX: canvasW * 0.65,
-                        x: canvasW * 0.65,
-                        y: topY + usableH * 0.78,
-                        r: 13,
-                        phase: Math.PI,
-                        amp: Math.min(55, canvasW * 0.1)
-                    });
+                    const baseCols = Math.max(7, Math.min(12, Math.floor(usableW / 54)));
+
+                    // ZONA 1: Matriz Plinko inicial (y: 150 - 610)
+                    addPegGrid(155, 8, baseCols, 62);
+
+                    // ZONA 2: Rampas inclinadas en zig-zag con huecos (y: 700 - 1170)
+                    this.ramps.push(
+                        { x1: wallLeft + 6, y1: 720, x2: wallLeft + usableW * 0.62, y2: 810 },
+                        { x1: wallRight - 6, y1: 870, x2: wallLeft + usableW * 0.38, y2: 960 },
+                        { x1: wallLeft + 6, y1: 1020, x2: wallLeft + usableW * 0.56, y2: 1105 },
+                        { x1: wallRight - 6, y1: 1030, x2: wallLeft + usableW * 0.68, y2: 1105 }
+                    );
+                    // Clavijas de apoyo entre rampas
+                    addPegGrid(790, 2, Math.max(5, baseCols - 2), 145);
+
+                    // ZONA 3: Deflectores móviles y diamantes (y: 1200 - 1700)
+                    addPegGrid(1200, 6, baseCols, 76);
+                    this.bumpers.push(
+                        { baseX: wallLeft + usableW * 0.32, x: wallLeft + usableW * 0.32, y: 1275, r: 14, phase: 0, amp: Math.min(70, usableW * 0.14) },
+                        { baseX: wallLeft + usableW * 0.68, x: wallLeft + usableW * 0.68, y: 1425, r: 14, phase: Math.PI, amp: Math.min(70, usableW * 0.14) },
+                        { baseX: wallLeft + usableW * 0.50, x: wallLeft + usableW * 0.50, y: 1580, r: 15, phase: Math.PI / 2, amp: Math.min(95, usableW * 0.2) }
+                    );
+
+                    // ZONA 4: Embudo suave + recta final Plinko (y: 1730 - 2210)
+                    this.ramps.push(
+                        { x1: wallLeft + 6, y1: 1715, x2: wallLeft + usableW * 0.30, y2: 1785 },
+                        { x1: wallRight - 6, y1: 1715, x2: wallLeft + usableW * 0.70, y2: 1785 }
+                    );
+                    addPegGrid(1820, 7, baseCols, 58);
+                },
+
+                getMarbleRadius(count) {
+                    if (count >= 30) return 10.5;
+                    if (count >= 20) return 11.5;
+                    return 13;
                 },
 
                 reset() {
                     this.buildBoard();
+                    this.cameraY = 0;
                     this.marbles = [];
                     this.winners = [];
                     const active = getActiveStudents();
-                    const r = Math.max(10, Math.min(15, Math.floor(240 / Math.max(10, active.length))));
-                    const span = canvasW - 100;
+                    const r = this.getMarbleRadius(active.length);
+                    const wallLeft = 34;
+                    const wallRight = canvasW - 50;
+                    const colsPerRow = Math.max(6, Math.floor((wallRight - wallLeft) / (r * 2.4)));
+
                     active.forEach((s, i) => {
-                        const x = 50 + (active.length === 1 ? span / 2 : (i / (active.length - 1)) * span);
+                        const row = Math.floor(i / colsPerRow);
+                        const col = i % colsPerRow;
+                        const rowCount = Math.min(colsPerRow, active.length - row * colsPerRow);
+                        const span = wallRight - wallLeft;
+                        const x = wallLeft + (rowCount === 1 ? span / 2 : (col / (rowCount - 1)) * span);
                         this.marbles.push({
                             student: s,
                             x,
-                            y: 36 + (i % 2) * 18,
+                            y: 34 + row * (r * 2.2),
                             vx: 0,
                             vy: 0,
                             r,
@@ -1076,59 +1138,113 @@
                     const active = getActiveStudents();
                     if (active.length === 0) return;
                     this.buildBoard();
+                    this.cameraY = 0;
                     this.winners = [];
                     this.targetCount = Math.min(state.winnerCount, active.length);
                     this.time = 0;
+                    this.lastFrameTime = performance.now();
 
                     const shuffled = shuffleArray(active);
-                    const r = Math.max(10, Math.min(15, Math.floor(240 / Math.max(10, active.length))));
-                    this.marbles = shuffled.map((s, i) => ({
-                        student: s,
-                        x: canvasW * 0.15 + Math.random() * (canvasW * 0.7),
-                        y: 26 + (i % 3) * 14,
-                        vx: (Math.random() - 0.5) * 3.5,
-                        vy: Math.random() * 1.5,
-                        r,
-                        finished: false,
-                        stuckFrames: 0
-                    }));
+                    const r = this.getMarbleRadius(active.length);
+                    const wallLeft = 36;
+                    const wallRight = canvasW - 52;
+                    const colsPerRow = Math.max(6, Math.floor((wallRight - wallLeft) / (r * 2.3)));
+
+                    this.marbles = shuffled.map((s, i) => {
+                        const row = Math.floor(i / colsPerRow);
+                        const col = i % colsPerRow;
+                        const span = wallRight - wallLeft;
+                        const jitter = (Math.random() - 0.5) * 10;
+                        const x = Math.max(wallLeft, Math.min(wallRight, wallLeft + (col / Math.max(1, colsPerRow - 1)) * span + jitter));
+                        return {
+                            student: s,
+                            x,
+                            y: 26 + row * (r * 2.15),
+                            vx: (Math.random() - 0.5) * 2.4,
+                            vy: Math.random() * 0.8,
+                            r,
+                            finished: false,
+                            stuckFrames: 0
+                        };
+                    });
 
                     state.isRunning = true;
                     updateControlsUI();
-                    setStageBadge(`Canicas en carrera (0/${this.targetCount} en meta)`);
+                    setStageBadge(`Canicas en descenso (0/${this.targetCount} en meta)`);
                     this.loop();
                 },
 
                 loop() {
-                    this.time += 0.035;
-                    // Actualizar posición de deflectores móviles
+                    const now = performance.now();
+                    const dt = Math.min(1.8, Math.max(0.4, (now - this.lastFrameTime) / 16.667));
+                    this.lastFrameTime = now;
+                    this.time += 0.032 * dt;
+
+                    const wallLeft = 18;
+                    const wallRight = canvasW - 34;
+
+                    // Actualizar deflectores móviles
                     for (const b of this.bumpers) {
                         b.x = b.baseX + Math.sin(this.time + b.phase) * b.amp;
                     }
 
-                    // Sub-stepping físico para colisiones limpias
+                    // Física con sub-stepping y velocidad terminal controlada (~11-14s total)
                     const subSteps = 3;
-                    const gravity = 0.24 / subSteps;
+                    const gravity = (0.115 * dt) / subSteps;
+                    const maxVy = 4.25;
+                    const maxVx = 4.8;
 
                     for (let step = 0; step < subSteps; step++) {
                         for (const m of this.marbles) {
                             if (m.finished) continue;
 
-                            m.vy += gravity;
-                            m.x += m.vx / subSteps;
-                            m.y += m.vy / subSteps;
+                            m.vy = Math.min(maxVy, m.vy + gravity);
+                            m.vx = Math.max(-maxVx, Math.min(maxVx, m.vx * 0.998));
+                            m.x += (m.vx * dt) / subSteps;
+                            m.y += (m.vy * dt) / subSteps;
 
                             // Paredes laterales
-                            if (m.x - m.r < 16) {
-                                m.x = 16 + m.r;
-                                m.vx = Math.abs(m.vx) * 0.78 + 0.4;
-                            } else if (m.x + m.r > canvasW - 16) {
-                                m.x = canvasW - 16 - m.r;
-                                m.vx = -Math.abs(m.vx) * 0.78 - 0.4;
+                            if (m.x - m.r < wallLeft) {
+                                m.x = wallLeft + m.r;
+                                m.vx = Math.abs(m.vx) * 0.72 + 0.35;
+                            } else if (m.x + m.r > wallRight) {
+                                m.x = wallRight - m.r;
+                                m.vx = -Math.abs(m.vx) * 0.72 - 0.35;
+                            }
+
+                            // Colisión con rampas inclinadas (segmentos)
+                            for (const rm of this.ramps) {
+                                const dx = rm.x2 - rm.x1;
+                                const dy = rm.y2 - rm.y1;
+                                const lenSq = dx * dx + dy * dy;
+                                const t = Math.max(0, Math.min(1, ((m.x - rm.x1) * dx + (m.y - rm.y1) * dy) / lenSq));
+                                const cx = rm.x1 + t * dx;
+                                const cy = rm.y1 + t * dy;
+                                const distX = m.x - cx;
+                                const distY = m.y - cy;
+                                const distSq = distX * distX + distY * distY;
+                                const minDist = m.r + 4.5;
+                                if (distSq < minDist * minDist && distSq > 0.0001) {
+                                    const dist = Math.sqrt(distSq);
+                                    const nx = distX / dist;
+                                    const ny = distY / dist;
+                                    m.x += nx * (minDist - dist);
+                                    m.y += ny * (minDist - dist);
+
+                                    const dot = m.vx * nx + m.vy * ny;
+                                    if (dot < 0) {
+                                        m.vx = (m.vx - 1.65 * dot * nx) * 0.82;
+                                        m.vy = (m.vy - 1.65 * dot * ny) * 0.82;
+                                        // Impulso ligero hacia abajo por la pendiente
+                                        const slopeSign = rm.x2 > rm.x1 ? 1 : -1;
+                                        m.vx += slopeSign * 0.25;
+                                    }
+                                }
                             }
 
                             // Colisión con clavijas (pegs)
                             for (const p of this.pegs) {
+                                if (Math.abs(m.y - p.y) > m.r + p.r + 2) continue;
                                 const dx = m.x - p.x;
                                 const dy = m.y - p.y;
                                 const distSq = dx * dx + dy * dy;
@@ -1143,10 +1259,10 @@
 
                                     const dot = m.vx * nx + m.vy * ny;
                                     if (dot < 0) {
-                                        m.vx = (m.vx - 2 * dot * nx) * 0.72 + (Math.random() - 0.5) * 0.9;
-                                        m.vy = (m.vy - 2 * dot * ny) * 0.72;
+                                        m.vx = (m.vx - 2 * dot * nx) * 0.68 + (Math.random() - 0.5) * 0.85;
+                                        m.vy = (m.vy - 2 * dot * ny) * 0.64;
                                         p.glow = 1;
-                                        if (Math.random() < 0.22) sound.playBounce();
+                                        if (Math.random() < 0.14) sound.playBounce();
                                     }
                                 }
                             }
@@ -1163,8 +1279,8 @@
                                     const ny = dy / dist;
                                     m.x += nx * (minDist - dist);
                                     m.y += ny * (minDist - dist);
-                                    m.vx = nx * 5.2 + (Math.random() - 0.5);
-                                    m.vy = ny * 5.2;
+                                    m.vx = nx * 4.4 + (Math.random() - 0.5);
+                                    m.vy = Math.min(maxVy, ny * 3.8);
                                     sound.playBounce();
                                 }
                             }
@@ -1177,6 +1293,7 @@
                             for (let j = i + 1; j < this.marbles.length; j++) {
                                 const b = this.marbles[j];
                                 if (b.finished) continue;
+                                if (Math.abs(a.y - b.y) > a.r + b.r + 2) continue;
                                 const dx = b.x - a.x;
                                 const dy = b.y - a.y;
                                 const distSq = dx * dx + dy * dy;
@@ -1195,7 +1312,7 @@
                                     const dvy = a.vy - b.vy;
                                     const dot = dvx * nx + dvy * ny;
                                     if (dot > 0) {
-                                        const imp = dot * 0.85;
+                                        const imp = dot * 0.8;
                                         a.vx -= imp * nx;
                                         a.vy -= imp * ny;
                                         b.vx += imp * nx;
@@ -1206,14 +1323,17 @@
                         }
                     }
 
-                    // Anti-atasco y detección de meta
+                    // Anti-atasco, líder y detección de meta
+                    let leadMarble = null;
                     for (const m of this.marbles) {
                         if (m.finished) continue;
-                        if (Math.abs(m.vx) + Math.abs(m.vy) < 0.35) {
+                        if (!leadMarble || m.y > leadMarble.y) leadMarble = m;
+
+                        if (Math.abs(m.vx) + Math.abs(m.vy) < 0.32) {
                             m.stuckFrames++;
-                            if (m.stuckFrames > 22) {
-                                m.vx += (Math.random() - 0.5) * 3.2;
-                                m.vy += 1.5;
+                            if (m.stuckFrames > 20) {
+                                m.vx += (Math.random() - 0.5) * 3.0;
+                                m.vy += 1.4;
                                 m.stuckFrames = 0;
                             }
                         } else {
@@ -1227,6 +1347,7 @@
                             sound.playGoal();
                             setStageBadge(`En meta: ${this.winners.length}/${this.targetCount} — ¡${m.student.name}!`);
                             if (this.winners.length >= this.targetCount) {
+                                this.cameraY = Math.max(0, this.worldHeight - canvasH);
                                 this.draw();
                                 finishRound(this.winners);
                                 return;
@@ -1234,9 +1355,19 @@
                         }
                     }
 
+                    // Seguimiento suave de cámara hacia el puntero
+                    if (leadMarble) {
+                        const targetCam = Math.max(0, Math.min(this.worldHeight - canvasH, leadMarble.y - canvasH * 0.52));
+                        this.cameraY += (targetCam - this.cameraY) * Math.min(1, 0.1 * dt);
+                        const pct = Math.min(99, Math.floor((leadMarble.y / this.finishY) * 100));
+                        if (this.winners.length === 0) {
+                            setStageBadge(`Líder: ${leadMarble.student.name} (${pct}%)`);
+                        }
+                    }
+
                     // Atenuar brillo de pegs
                     for (const p of this.pegs) {
-                        if (p.glow > 0) p.glow = Math.max(0, p.glow - 0.06);
+                        if (p.glow > 0) p.glow = Math.max(0, p.glow - 0.06 * dt);
                     }
 
                     this.draw();
@@ -1247,39 +1378,78 @@
 
                 draw() {
                     ctx.clearRect(0, 0, canvasW, canvasH);
+                    const wallLeft = 18;
+                    const wallRight = canvasW - 34;
 
-                    // Paredes laterales decorativas
+                    ctx.save();
+                    ctx.translate(0, -this.cameraY);
+
+                    // Paredes laterales
                     ctx.fillStyle = 'rgba(255,255,255,0.06)';
-                    ctx.fillRect(0, 0, 16, canvasH);
-                    ctx.fillRect(canvasW - 16, 0, 16, canvasH);
+                    ctx.fillRect(0, 0, wallLeft, this.worldHeight);
+                    ctx.fillRect(wallRight, 0, canvasW - wallRight, this.worldHeight);
 
-                    // Línea de meta inferior (ajedrezada)
-                    const checkSize = 14;
-                    for (let x = 16; x < canvasW - 16; x += checkSize) {
-                        const idx = Math.floor(x / checkSize);
-                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(15,23,42,0.85)';
-                        ctx.fillRect(x, this.finishY, checkSize, 10);
-                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.85)';
-                        ctx.fillRect(x, this.finishY + 10, checkSize, 10);
-                    }
-                    ctx.fillStyle = '#94a3b8';
+                    // Marcadores de distancia (25%, 50%, 75%)
+                    ctx.strokeStyle = 'rgba(148,163,184,0.14)';
+                    ctx.setLineDash([8, 8]);
+                    ctx.lineWidth = 1.5;
                     ctx.font = '700 11px Inter, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('META', canvasW / 2, this.finishY + 34);
+                    ctx.fillStyle = 'rgba(148,163,184,0.45)';
+                    ctx.textAlign = 'left';
+                    [0.25, 0.5, 0.75].forEach(frac => {
+                        const y = Math.floor(this.finishY * frac);
+                        ctx.beginPath();
+                        ctx.moveTo(wallLeft, y);
+                        ctx.lineTo(wallRight, y);
+                        ctx.stroke();
+                        ctx.fillText(`${Math.round(frac * 100)}% DEL RECORRIDO`, wallLeft + 10, y - 6);
+                    });
+                    ctx.setLineDash([]);
 
-                    // Dibujar clavijas
+                    // Línea de meta ajedrezada
+                    const checkSize = 14;
+                    for (let x = wallLeft; x < wallRight; x += checkSize) {
+                        const idx = Math.floor(x / checkSize);
+                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.9)';
+                        ctx.fillRect(x, this.finishY, Math.min(checkSize, wallRight - x), 10);
+                        ctx.fillStyle = idx % 2 === 0 ? 'rgba(15,23,42,0.9)' : 'rgba(255,255,255,0.9)';
+                        ctx.fillRect(x, this.finishY + 10, Math.min(checkSize, wallRight - x), 10);
+                    }
+                    ctx.fillStyle = '#facc15';
+                    ctx.font = '700 13px Fredoka, Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🏁 META FINAL 🏁', (wallLeft + wallRight) / 2, this.finishY + 38);
+
+                    // Rampas inclinadas
+                    ctx.lineCap = 'round';
+                    for (const rm of this.ramps) {
+                        if (Math.max(rm.y1, rm.y2) < this.cameraY - 30 || Math.min(rm.y1, rm.y2) > this.cameraY + canvasH + 30) continue;
+                        ctx.beginPath();
+                        ctx.moveTo(rm.x1, rm.y1);
+                        ctx.lineTo(rm.x2, rm.y2);
+                        ctx.lineWidth = 9;
+                        ctx.strokeStyle = '#38bdf8';
+                        ctx.stroke();
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = '#e0f2fe';
+                        ctx.stroke();
+                    }
+
+                    // Clavijas visibles en el viewport
                     for (const p of this.pegs) {
+                        if (p.y < this.cameraY - 20 || p.y > this.cameraY + canvasH + 20) continue;
                         ctx.beginPath();
                         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                        ctx.fillStyle = p.glow > 0 ? `rgba(250, 204, 21, ${0.4 + p.glow * 0.6})` : '#64748b';
+                        ctx.fillStyle = p.glow > 0 ? `rgba(250, 204, 21, ${0.45 + p.glow * 0.55})` : '#64748b';
                         ctx.fill();
-                        ctx.lineWidth = 1.5;
+                        ctx.lineWidth = 1.4;
                         ctx.strokeStyle = 'rgba(255,255,255,0.45)';
                         ctx.stroke();
                     }
 
-                    // Dibujar deflectores móviles
+                    // Deflectores móviles
                     for (const b of this.bumpers) {
+                        if (b.y < this.cameraY - 30 || b.y > this.cameraY + canvasH + 30) continue;
                         ctx.beginPath();
                         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
                         const grad = ctx.createRadialGradient(b.x - 4, b.y - 4, 2, b.x, b.y, b.r);
@@ -1292,10 +1462,10 @@
                         ctx.stroke();
                     }
 
-                    // Dibujar canicas
+                    // Canicas
                     for (const m of this.marbles) {
+                        if (m.y < this.cameraY - 30 || m.y > this.cameraY + canvasH + 30) continue;
                         ctx.save();
-                        // Esfera con brillo 3D
                         const grad = ctx.createRadialGradient(m.x - m.r * 0.35, m.y - m.r * 0.35, m.r * 0.15, m.x, m.y, m.r);
                         grad.addColorStop(0, '#ffffff');
                         grad.addColorStop(0.28, m.student.color);
@@ -1305,20 +1475,556 @@
                         ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
                         ctx.fillStyle = grad;
                         ctx.fill();
-                        ctx.lineWidth = m.finished ? 3 : 1.5;
-                        ctx.strokeStyle = m.finished ? '#facc15' : 'rgba(255,255,255,0.8)';
+                        ctx.lineWidth = m.finished ? 3 : 1.4;
+                        ctx.strokeStyle = m.finished ? '#facc15' : 'rgba(255,255,255,0.85)';
                         ctx.stroke();
 
-                        // Iniciales dentro de la canica
                         ctx.fillStyle = '#ffffff';
-                        ctx.font = `700 ${Math.max(8, Math.floor(m.r * 0.78))}px Inter, sans-serif`;
+                        ctx.font = `700 ${Math.max(7.5, Math.floor(m.r * 0.78))}px Inter, sans-serif`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.shadowColor = 'rgba(0,0,0,0.75)';
+                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
                         ctx.shadowBlur = 3;
                         ctx.fillText(getInitials(m.student.name), m.x, m.y + 0.5);
                         ctx.restore();
                     }
+
+                    ctx.restore();
+
+                    // Minimapa vertical de progreso en el borde derecho
+                    const mapX = canvasW - 22;
+                    const mapTop = 20;
+                    const mapH = canvasH - 40;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.roundRect(mapX, mapTop, 12, mapH, 6);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Ventana visible de la cámara en el minimapa
+                    const viewTop = mapTop + (this.cameraY / this.worldHeight) * mapH;
+                    const viewH = Math.max(14, (canvasH / this.worldHeight) * mapH);
+                    ctx.fillStyle = 'rgba(99, 102, 241, 0.35)';
+                    ctx.fillRect(mapX + 1, viewTop, 10, viewH);
+
+                    // Puntos de cada canica en el minimapa
+                    for (const m of this.marbles) {
+                        const my = mapTop + Math.min(1, m.y / this.finishY) * mapH;
+                        ctx.beginPath();
+                        ctx.arc(mapX + 6, my, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = m.finished ? '#facc15' : m.student.color;
+                        ctx.fill();
+                    }
+                }
+            };
+
+            /* =====================================================================
+             * 9. MODO 3: CARRERA DE COHETES (PISTA LARGA ~11-14s CON CÁMARA Y MINIMAPA)
+             * ===================================================================== */
+            const RocketsGame = {
+                stars: [],
+                racers: [],
+                winners: [],
+                targetCount: 1,
+                startX: 70,
+                finishX: 3350, // Recorrido largo para durar 11-14 segundos
+                cameraX: 0,
+                lastFrameTime: 0,
+
+                initStars() {
+                    this.stars = [];
+                    for (let i = 0; i < 85; i++) {
+                        this.stars.push({
+                            x: Math.random() * canvasW,
+                            y: Math.random() * canvasH,
+                            r: 0.8 + Math.random() * 1.9,
+                            speed: 0.4 + Math.random() * 2.2
+                        });
+                    }
+                },
+
+                setupRacers() {
+                    const active = getActiveStudents();
+                    this.cameraX = 0;
+                    const topPad = 56; // Espacio para el minimapa superior
+                    const bottomPad = 18;
+                    const laneH = (canvasH - topPad - bottomPad) / Math.max(1, active.length);
+
+                    this.racers = active.map((s, i) => ({
+                        student: s,
+                        x: this.startX,
+                        y: topPad + laneH * i + laneH / 2,
+                        speed: 3.6 + Math.random() * 0.8,
+                        targetSpeed: 3.8 + Math.random() * 0.9,
+                        changeTimer: 30 + Math.random() * 70,
+                        turbo: 0,
+                        slow: 0,
+                        finished: false,
+                        laneH
+                    }));
+                },
+
+                reset() {
+                    this.initStars();
+                    this.setupRacers();
+                    this.winners = [];
+                    this.draw();
+                },
+
+                start() {
+                    const active = getActiveStudents();
+                    if (active.length === 0) return;
+                    this.initStars();
+                    this.setupRacers();
+                    this.winners = [];
+                    this.targetCount = Math.min(state.winnerCount, active.length);
+                    this.lastFrameTime = performance.now();
+                    state.isRunning = true;
+                    updateControlsUI();
+                    setStageBadge(`¡Despegue! (0/${this.targetCount} en meta)`);
+                    this.loop();
+                },
+
+                loop() {
+                    const now = performance.now();
+                    const dt = Math.min(1.8, Math.max(0.4, (now - this.lastFrameTime) / 16.667));
+                    this.lastFrameTime = now;
+
+                    // Paralaje de estrellas
+                    for (const st of this.stars) {
+                        st.x -= st.speed * 1.8 * dt;
+                        if (st.x < 0) {
+                            st.x = canvasW;
+                            st.y = Math.random() * canvasH;
+                        }
+                    }
+
+                    // Calcular posición del líder actual para efecto de carrera cerrada
+                    let maxX = this.startX;
+                    for (const r of this.racers) {
+                        if (r.x > maxX) maxX = r.x;
+                    }
+
+                    // Mover cohetes con cambios de ritmo, turbos y micro-meteoritos (~12-14s total)
+                    let leadRacer = null;
+                    for (const r of this.racers) {
+                        if (r.finished) continue;
+
+                        r.changeTimer -= dt;
+                        if (r.changeTimer <= 0) {
+                            r.targetSpeed = 2.8 + Math.random() * 2.4;
+                            // Pequeño rebufo para rezagados y mantener emoción
+                            if (maxX - r.x > 260) r.targetSpeed += 0.65;
+                            r.changeTimer = 45 + Math.random() * 85;
+                        }
+
+                        r.speed += (r.targetSpeed - r.speed) * 0.045 * dt;
+
+                        // Evento aleatorio de Turbo ⚡
+                        if (r.turbo <= 0 && r.slow <= 0 && Math.random() < 0.0045 * dt) {
+                            r.turbo = 44;
+                            if (Math.random() < 0.35) sound.playTurbo();
+                        }
+                        // Evento ocasional de turbulencia espacial ☄️
+                        else if (r.turbo <= 0 && r.slow <= 0 && Math.random() < 0.0025 * dt) {
+                            r.slow = 34;
+                        }
+
+                        let modifier = 0;
+                        if (r.turbo > 0) {
+                            modifier = 1.85;
+                            r.turbo -= dt;
+                        } else if (r.slow > 0) {
+                            modifier = -1.35;
+                            r.slow -= dt;
+                        }
+
+                        const stepX = Math.max(1.2, r.speed + modifier) * dt;
+                        r.x += stepX;
+
+                        if (!leadRacer || r.x > leadRacer.x) leadRacer = r;
+
+                        if (r.x >= this.finishX) {
+                            r.x = this.finishX;
+                            r.finished = true;
+                            this.winners.push(r.student);
+                            sound.playGoal();
+                            setStageBadge(`Llegaron: ${this.winners.length}/${this.targetCount} — ¡${r.student.name}!`);
+                            if (this.winners.length >= this.targetCount) {
+                                this.cameraX = Math.max(0, this.finishX - canvasW + 100);
+                                this.draw();
+                                finishRound(this.winners);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Cámara horizontal siguiendo al líder
+                    if (leadRacer) {
+                        const targetCam = Math.max(0, Math.min(this.finishX - canvasW + 100, leadRacer.x - canvasW * 0.72));
+                        this.cameraX += (targetCam - this.cameraX) * Math.min(1, 0.1 * dt);
+                        const pct = Math.min(99, Math.floor(((leadRacer.x - this.startX) / (this.finishX - this.startX)) * 100));
+                        if (this.winners.length === 0) {
+                            setStageBadge(`En punta: ${leadRacer.student.name} (${pct}%)`);
+                        }
+                    }
+
+                    this.draw();
+                    if (state.isRunning && state.mode === 'rockets') {
+                        activeRaf = requestAnimationFrame(() => this.loop());
+                    }
+                },
+
+                draw() {
+                    ctx.clearRect(0, 0, canvasW, canvasH);
+
+                    // Estrellas de fondo
+                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                    for (const st of this.stars) {
+                        ctx.beginPath();
+                        ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Identificar a los 6 punteros para mostrar sus nombres completos sin saturar con 36 alumnos
+                    const showAllNames = this.racers.length <= 16;
+                    const topIds = new Set(
+                        this.racers
+                            .slice()
+                            .sort((a, b) => b.x - a.x)
+                            .slice(0, 6)
+                            .map(r => r.student.id)
+                    );
+
+                    ctx.save();
+                    ctx.translate(-this.cameraX, 0);
+
+                    // Marcadores de distancia en la pista espacial
+                    const trackSpan = this.finishX - this.startX;
+                    ctx.strokeStyle = 'rgba(148,163,184,0.16)';
+                    ctx.setLineDash([6, 6]);
+                    ctx.lineWidth = 1.5;
+                    ctx.font = '700 11px Inter, sans-serif';
+                    ctx.fillStyle = 'rgba(148,163,184,0.45)';
+                    ctx.textAlign = 'center';
+
+                    for (let pct = 0; pct <= 100; pct += 20) {
+                        const mx = this.startX + (trackSpan * pct) / 100;
+                        if (mx < this.cameraX - 60 || mx > this.cameraX + canvasW + 60) continue;
+                        ctx.beginPath();
+                        ctx.moveTo(mx, 50);
+                        ctx.lineTo(mx, canvasH - 14);
+                        ctx.stroke();
+                        if (pct > 0 && pct < 100) {
+                            ctx.fillText(`${pct}%`, mx, canvasH - 4);
+                        }
+                    }
+                    ctx.setLineDash([]);
+
+                    // Línea de meta ajedrezada vertical
+                    const sq = 10;
+                    for (let y = 50; y < canvasH - 14; y += sq) {
+                        const idx = Math.floor(y / sq);
+                        ctx.fillStyle = idx % 2 === 0 ? '#ffffff' : '#1e293b';
+                        ctx.fillRect(this.finishX, y, sq, sq);
+                        ctx.fillStyle = idx % 2 === 0 ? '#1e293b' : '#ffffff';
+                        ctx.fillRect(this.finishX + sq, y, sq, sq);
+                    }
+
+                    // Dibujar carriles y cohetes
+                    for (const r of this.racers) {
+                        const scale = Math.max(0.45, Math.min(1.0, r.laneH / 32));
+                        const isLeaderPack = topIds.has(r.student.id);
+
+                        // Línea guía sutil
+                        ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(this.startX, r.y);
+                        ctx.lineTo(this.finishX, r.y);
+                        ctx.stroke();
+
+                        if (r.x < this.cameraX - 180 || r.x > this.cameraX + canvasW + 80) continue;
+
+                        ctx.save();
+                        ctx.translate(r.x, r.y);
+
+                        // Llama de propulsión
+                        if (state.isRunning && !r.finished) {
+                            const flameLen = (r.turbo > 0 ? 32 : r.slow > 0 ? 7 : 15) * scale + Math.random() * 6;
+                            ctx.beginPath();
+                            ctx.moveTo(-14 * scale, -5 * scale);
+                            ctx.lineTo(-14 * scale - flameLen, 0);
+                            ctx.lineTo(-14 * scale, 5 * scale);
+                            ctx.closePath();
+                            ctx.fillStyle = r.turbo > 0 ? '#38bdf8' : r.slow > 0 ? '#94a3b8' : '#fb923c';
+                            ctx.fill();
+                        }
+
+                        // Aletas
+                        ctx.fillStyle = '#e2e8f0';
+                        ctx.beginPath();
+                        ctx.moveTo(-14 * scale, -10 * scale);
+                        ctx.lineTo(-4 * scale, -6 * scale);
+                        ctx.lineTo(-14 * scale, -3 * scale);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(-14 * scale, 10 * scale);
+                        ctx.lineTo(-4 * scale, 6 * scale);
+                        ctx.lineTo(-14 * scale, 3 * scale);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // Cuerpo del cohete
+                        ctx.beginPath();
+                        ctx.moveTo(18 * scale, 0);
+                        ctx.quadraticCurveTo(8 * scale, -9 * scale, -14 * scale, -7 * scale);
+                        ctx.lineTo(-14 * scale, 7 * scale);
+                        ctx.quadraticCurveTo(8 * scale, 9 * scale, 18 * scale, 0);
+                        ctx.closePath();
+                        ctx.fillStyle = r.student.color;
+                        ctx.fill();
+                        ctx.lineWidth = r.finished ? 2.2 : 1.3;
+                        ctx.strokeStyle = r.finished ? '#facc15' : '#ffffff';
+                        ctx.stroke();
+
+                        // Ventanilla
+                        ctx.beginPath();
+                        ctx.arc(2 * scale, 0, 3.5 * scale, 0, Math.PI * 2);
+                        ctx.fillStyle = '#bae6fd';
+                        ctx.fill();
+
+                        // Etiquetas inteligentes (legibles incluso con 36 alumnos)
+                        if (showAllNames || isLeaderPack || !state.isRunning) {
+                            const suffix = r.turbo > 0 ? ' ⚡' : r.slow > 0 ? ' ☄️' : '';
+                            const label = (showAllNames || isLeaderPack ? r.student.name : getInitials(r.student.name)) + suffix;
+                            const fontSize = showAllNames
+                                ? Math.max(10, Math.min(13, Math.floor(r.laneH * 0.48)))
+                                : (isLeaderPack ? 11 : 9);
+                            ctx.font = `700 ${fontSize}px Inter, sans-serif`;
+
+                            if (!showAllNames && isLeaderPack && state.isRunning) {
+                                // Píldora oscura detrás del nombre de los punteros para máxima legibilidad
+                                const tw = ctx.measureText(label).width;
+                                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                                ctx.beginPath();
+                                ctx.roundRect(-24 * scale - tw - 10, -9, tw + 12, 18, 6);
+                                ctx.fill();
+                                ctx.strokeStyle = r.student.color;
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            }
+
+                            ctx.fillStyle = r.finished ? '#fde047' : (isLeaderPack ? '#ffffff' : 'rgba(226,232,240,0.82)');
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'middle';
+                            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                            ctx.shadowBlur = 3;
+                            ctx.fillText(label, -22 * scale, 0);
+                        } else {
+                            // Iniciales sutiles para el resto del pelotón
+                            ctx.fillStyle = 'rgba(226,232,240,0.65)';
+                            ctx.font = '600 8.5px Inter, sans-serif';
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(getInitials(r.student.name), -18 * scale, 0);
+                        }
+
+                        ctx.restore();
+                    }
+
+                    ctx.restore();
+
+                    // Minimapa horizontal superior de toda la carrera
+                    const barPadX = 24;
+                    const barY = 18;
+                    const barW = canvasW - barPadX * 2;
+                    const barH = 14;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.roundRect(barPadX, barY, barW, barH, 7);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Bandera de meta en el minimapa
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillRect(barPadX + barW - 5, barY + 2, 3, barH - 4);
+
+                    for (const r of this.racers) {
+                        const progress = Math.max(0, Math.min(1, (r.x - this.startX) / trackSpan));
+                        const dx = barPadX + 6 + progress * (barW - 14);
+                        ctx.beginPath();
+                        ctx.arc(dx, barY + barH / 2, 3.5, 0, Math.PI * 2);
+                        ctx.fillStyle = r.finished ? '#facc15' : r.student.color;
+                        ctx.fill();
+                    }
+                }
+            };
+
+            /* =====================================================================
+             * 10. MODO 4: CAJAS MISTERIOSAS (ANIMACIÓN DE REFLECTOR + TARJETAS 3D)
+             * ===================================================================== */
+            const BoxesGame = {
+                shuffled: [],
+                revealedIds: new Set(),
+                picked: [],
+                targetCount: 1,
+                timers: [],
+
+                clearTimers() {
+                    this.timers.forEach(t => clearTimeout(t));
+                    this.timers = [];
+                },
+
+                reset() {
+                    this.clearTimers();
+                    const active = getActiveStudents();
+                    this.shuffled = shuffleArray(active);
+                    this.revealedIds = new Set();
+                    this.picked = [];
+                    this.targetCount = Math.min(state.winnerCount, active.length);
+                    this.renderGrid();
+                },
+
+                renderGrid() {
+                    const active = getActiveStudents();
+                    this.targetCount = Math.min(state.winnerCount, active.length);
+                    const remaining = Math.max(0, this.targetCount - this.picked.length);
+                    dom.boxesInstruction.innerHTML = remaining > 0
+                        ? `Haz clic en <span class="text-amber-300 font-bold text-lg">${remaining}</span> ${remaining === 1 ? 'caja misteriosa' : 'cajas misteriosas'} o pulsa <span class="text-pink-300 font-bold">¡Revelar al Azar!</span>`
+                        : '¡Selección completada!';
+
+                    dom.boxesGrid.innerHTML = '';
+                    const isDense = this.shuffled.length > 20;
+                    const cardHeight = isDense ? 'h-20 sm:h-24' : 'h-28 sm:h-32';
+                    const emojiSize = isDense ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl';
+
+                    this.shuffled.forEach((student, idx) => {
+                        const isFlipped = this.revealedIds.has(student.id);
+                        const card = document.createElement('div');
+                        card.dataset.studentId = student.id;
+                        card.className = `mystery-card perspective-1000 ${cardHeight} select-none ${isFlipped ? 'flipped' : ''}`;
+                        card.innerHTML = `
+                            <div class="mystery-card-inner">
+                                <div class="mystery-card-front">
+                                    <span class="${emojiSize} leading-none mb-1">🎁</span>
+                                    <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-300">#${idx + 1}</span>
+                                </div>
+                                <div class="mystery-card-back">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-amber-900/80 mb-0.5">¡Elegido!</span>
+                                    <span class="font-display font-bold text-xs sm:text-sm leading-tight line-clamp-2">${escapeHtml(student.name)}</span>
+                                </div>
+                            </div>
+                        `;
+                        card.addEventListener('click', () => {
+                            if (state.isRunning) return;
+                            this.flipCard(student, card, true);
+                        });
+                        dom.boxesGrid.appendChild(card);
+                    });
+                },
+
+                flipCard(student, cardEl, isManual = false) {
+                    if (this.revealedIds.has(student.id)) return;
+                    if (this.picked.length >= this.targetCount) return;
+
+                    this.revealedIds.add(student.id);
+                    this.picked.push(student);
+                    cardEl.classList.remove('spotlight');
+                    cardEl.classList.add('flipped', 'picked-burst');
+                    sound.playFlip();
+
+                    const remaining = this.targetCount - this.picked.length;
+                    dom.boxesInstruction.innerHTML = remaining > 0
+                        ? `¡Salió <span class="text-amber-300 font-bold">${escapeHtml(student.name)}</span>! Faltan <span class="text-amber-300 font-bold">${remaining}</span>...`
+                        : `¡Todos elegidos! Último: <span class="text-amber-300 font-bold">${escapeHtml(student.name)}</span>`;
+
+                    if (this.picked.length >= this.targetCount) {
+                        const t = setTimeout(() => {
+                            finishRound(this.picked);
+                        }, isManual ? 950 : 1150);
+                        this.timers.push(t);
+                    }
+                },
+
+                autoRevealRemaining() {
+                    const needed = this.targetCount - this.picked.length;
+                    const available = this.shuffled.filter(s => !this.revealedIds.has(s.id));
+                    if (needed <= 0 || available.length === 0) return;
+
+                    this.clearTimers();
+                    state.isRunning = true;
+                    updateControlsUI();
+
+                    // Preseleccionar los ganadores de forma justa
+                    const chosenList = shuffleArray(available).slice(0, needed);
+                    this.runSpotlightSequence(chosenList, 0);
+                },
+
+                runSpotlightSequence(chosenList, pickIdx) {
+                    if (!state.isRunning || state.mode !== 'boxes' || pickIdx >= chosenList.length) return;
+
+                    const targetStudent = chosenList[pickIdx];
+                    const unrevealedCards = Array.from(dom.boxesGrid.querySelectorAll('.mystery-card:not(.flipped)'));
+                    if (unrevealedCards.length === 0) return;
+
+                    setStageBadge(`Buscando ganador ${this.picked.length + 1} de ${this.targetCount}...`);
+                    dom.boxesInstruction.innerHTML = `✨ Seleccionando caja <span class="text-amber-300 font-bold">${this.picked.length + 1} de ${this.targetCount}</span>...`;
+
+                    const totalSteps = Math.min(18, Math.max(10, unrevealedCards.length));
+                    let currentStep = 0;
+                    let lastHighlighted = null;
+
+                    const stepJump = () => {
+                        if (!state.isRunning || state.mode !== 'boxes') return;
+
+                        if (lastHighlighted) lastHighlighted.classList.remove('spotlight');
+
+                        if (currentStep < totalSteps) {
+                            // Saltar a una caja aleatoria distinta a la anterior
+                            let candidate = unrevealedCards[Math.floor(Math.random() * unrevealedCards.length)];
+                            if (unrevealedCards.length > 1 && candidate === lastHighlighted) {
+                                candidate = unrevealedCards[(unrevealedCards.indexOf(candidate) + 1) % unrevealedCards.length];
+                            }
+                            candidate.classList.add('spotlight');
+                            lastHighlighted = candidate;
+                            sound.playTick();
+
+                            // Curva de desaceleración progresiva (de 55ms hasta ~240ms)
+                            const progress = currentStep / totalSteps;
+                            const delay = Math.floor(55 + Math.pow(progress, 2.2) * 210);
+                            currentStep++;
+                            this.timers.push(setTimeout(stepJump, delay));
+                        } else {
+                            // Aterrizar sobre la caja ganadora
+                            const targetCard = dom.boxesGrid.querySelector(`.mystery-card[data-student-id="${targetStudent.id}"]`);
+                            if (targetCard) {
+                                targetCard.classList.add('spotlight');
+                                targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                sound.playGoal();
+
+                                // Pausa breve con brillo dorado antes de voltear en 3D
+                                this.timers.push(setTimeout(() => {
+                                    if (!state.isRunning || state.mode !== 'boxes') return;
+                                    this.flipCard(targetStudent, targetCard, false);
+
+                                    if (pickIdx + 1 < chosenList.length) {
+                                        this.timers.push(setTimeout(() => {
+                                            this.runSpotlightSequence(chosenList, pickIdx + 1);
+                                        }, 750));
+                                    }
+                                }, 320));
+                            }
+                        }
+                    };
+
+                    stepJump();
                 }
             };
 
