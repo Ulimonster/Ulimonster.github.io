@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AsesorTesis — Generador de Prompt JSON</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#172033',
+              950: '#0b1120',
+            }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900 min-h-screen flex flex-col">
+
+  <!-- Toast / Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white flex items-center justify-center shadow-sm">
+          <i class="fa-solid fa-graduation-cap text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-slate-900 text-base sm:text-lg tracking-tight">AsesorTesis <span class="text-indigo-600">Payload</span></h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">v1.0 Schema</span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">Constructor de prompt condensado JSON para la skill asesor-tesis</p>
+        </div>
+      </div>
+
+      <!-- Global Actions -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Hidden File Input for JSON Import -->
+        <input type="file" id="json-file-input" accept=".json,application/json" class="hidden" />
+
+        <button type="button" onclick="triggerImportFile()" title="Importar desde archivo .json"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition cursor-pointer shadow-2xs">
+          <i class="fa-solid fa-file-import text-indigo-600"></i>
+          <span class="hidden md:inline">Importar JSON</span>
+        </button>
+
+        <button type="button" onclick="openPasteModal()" title="Pegar JSON crudo"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition cursor-pointer shadow-2xs">
+          <i class="fa-solid fa-paste text-slate-500"></i>
+          <span class="hidden lg:inline">Pegar JSON</span>
+        </button>
+
+        <button type="button" onclick="loadExamplePayload()" title="Cargar ejemplo de tesis"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition cursor-pointer">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span class="hidden sm:inline">Ejemplo</span>
+        </button>
+
+        <button type="button" onclick="resetFormConfirm()" title="Limpiar formulario"
+          class="inline-flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition cursor-pointer">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- Left Column: Interactive Form Builder (7 cols on lg) -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- Section Navigation Pills -->
+        <nav class="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap gap-1 sticky top-20 z-20">
+          <a href="#sec-ejecucion" class="flex-1 text-center px-2.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/70 transition">
+            <i class="fa-solid fa-sliders mr-1"></i>1. Ejecución
+          </a>
+          <a href="#sec-metadatos" class="flex-1 text-center px-2.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/70 transition">
+            <i class="fa-solid fa-university mr-1"></i>2. Metadatos
+          </a>
+          <a href="#sec-matriz" class="flex-1 text-center px-2.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/70 transition">
+            <i class="fa-solid fa-table-cells mr-1"></i>3. Matriz
+          </a>
+          <a href="#sec-insumos" class="flex-1 text-center px-2.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/70 transition">
+            <i class="fa-solid fa-layer-group mr-1"></i>4. Insumos
+          </a>
+          <a href="#sec-biblio-calidad" class="flex-1 text-center px-2.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/70 transition">
+            <i class="fa-solid fa-book-bookmark mr-1"></i>5. Citas y QA
+          </a>
+        </nav>
+
+        <!-- 1. EJECUCIÓN -->
+        <section id="sec-ejecucion" class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden scroll-mt-36">
+          <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">1</span>
+              <div>
+                <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Parámetros de Ejecución</h2>
+                <p class="text-xs text-slate-500">Define el modo de operación, fase y destino en Google Drive</p>
+              </div>
+            </div>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200">Requerido</span>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Modo de Ejecución <span class="text-rose-500">*</span></label>
+                <select id="ejecucion_modo" onchange="updateState()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
+                  <option value="redaccion">redaccion — Redactar sección/capítulo</option>
+                  <option value="revision">revision — Revisar y mejorar texto previo</option>
+                  <option value="validacion_consistencia">validacion_consistencia — Auditar coherencia metodológica</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Fase Objetivo <span class="text-rose-500">*</span></label>
+                <select id="ejecucion_fase" onchange="onFaseChange()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
+                  <option value="00_protocolo">00_protocolo — Protocolo de Investigación</option>
+                  <option value="cap_1">cap_1 — Capítulo 1: Planteamiento del Problema</option>
+                  <option value="cap_2">cap_2 — Capítulo 2: Marco Teórico / Referencial</option>
+                  <option value="cap_3">cap_3 — Capítulo 3: Marco Metodológico</option>
+                  <option value="cap_4">cap_4 — Capítulo 4: Resultados y Análisis</option>
+                  <option value="cap_5">cap_5 — Capítulo 5: Discusión y Conclusiones</option>
+                  <option value="referencias_apendices">referencias_apendices — Referencias y Apéndices</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Subsección Específica</label>
+              <input type="text" id="ejecucion_subseccion" value="todo_el_capitulo" oninput="updateState()" placeholder="Ej: todo_el_capitulo, 1.2 Planteamiento, 3.4 Muestra..."
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition" />
+            </div>
+
+            <!-- Drive Config Subpanel -->
+            <div class="rounded-xl bg-slate-50 border border-slate-200/80 p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i class="fa-brands fa-google-drive text-blue-600"></i>
+                  <span class="text-xs font-semibold text-slate-700">Configuración de Google Drive (drive_config)</span>
+                </div>
+                <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" id="drive_crear_carpeta" onchange="updateState()" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300" />
+                  <span class="text-xs font-medium text-slate-700">Crear carpeta</span>
+                </label>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-medium text-slate-600 mb-1">Nombre de carpeta</label>
+                  <input type="text" id="drive_nombre_carpeta" oninput="updateState()" placeholder="Ej: Tesis_Maestria_2026"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-medium text-slate-600 mb-1">ID de carpeta existente</label>
+                  <input type="text" id="drive_carpeta_id" oninput="updateState()" placeholder="Ej: 1A2b3C4d5E6f7G8h9I"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono text-slate-800 focus:border-indigo-500 outline-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. METADATOS -->
+        <section id="sec-metadatos" class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden scroll-mt-36">
+          <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">2</span>
+              <div>
+                <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Metadatos Académicos</h2>
+                <p class="text-xs text-slate-500">Contexto institucional, nivel y normas de estilo</p>
+              </div>
+            </div>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200">Requerido</span>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nivel Académico <span class="text-rose-500">*</span></label>
+                <select id="meta_nivel" onchange="updateState()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none">
+                  <option value="licenciatura">Licenciatura</option>
+                  <option value="maestria" selected>Maestría</option>
+                  <option value="doctorado">Doctorado</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Estilo de Citación <span class="text-rose-500">*</span></label>
+                <select id="meta_estilo" onchange="updateState()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none">
+                  <option value="APA_7" selected>APA 7ª Ed.</option>
+                  <option value="IEEE">IEEE</option>
+                  <option value="Vancouver">Vancouver</option>
+                  <option value="Chicago">Chicago</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Enfoque <span class="text-rose-500">*</span></label>
+                <select id="meta_enfoque" onchange="updateState()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none">
+                  <option value="cuantitativo">Cuantitativo</option>
+                  <option value="cualitativo">Cualitativo</option>
+                  <option value="mixto">Mixto</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Institución Educativa</label>
+                <input type="text" id="meta_institucion" oninput="updateState()" placeholder="Ej: Universidad Autónoma de Yucatán (UADY)"
+                  class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Área de Conocimiento</label>
+                <input type="text" id="meta_area" oninput="updateState()" placeholder="Ej: Ciencias Computacionales / Educación"
+                  class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. MATRIZ DE CONSISTENCIA -->
+        <section id="sec-matriz" class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden scroll-mt-36">
+          <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">3</span>
+              <div>
+                <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Matriz de Consistencia</h2>
+                <p class="text-xs text-slate-500">Núcleo lógico y metodológico de la investigación</p>
+              </div>
+            </div>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200">Requerido</span>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Título Tentativo <span class="text-rose-500">*</span></label>
+              <input type="text" id="matriz_titulo" oninput="updateState()" placeholder="Escribe el título completo de la investigación..."
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Problema General <span class="text-rose-500">*</span></label>
+              <textarea id="matriz_problema" rows="2" oninput="updateState()" placeholder="¿De qué manera influye X en Y en el contexto Z...?"
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none"></textarea>
+            </div>
+
+            <!-- Preguntas Específicas (Array) -->
+            <div class="rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-semibold text-slate-700">Preguntas Específicas</label>
+                <button type="button" onclick="addStringItem('preguntas_especificas')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer">
+                  <i class="fa-solid fa-plus text-[10px]"></i> Añadir pregunta
+                </button>
+              </div>
+              <div id="list-preguntas_especificas" class="space-y-2"></div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Objetivo General <span class="text-rose-500">*</span></label>
+              <textarea id="matriz_objetivo_general" rows="2" oninput="updateState()" placeholder="Determinar / Analizar / Evaluar la relación entre..."
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none"></textarea>
+            </div>
+
+            <!-- Objetivos Específicos (Array) -->
+            <div class="rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-semibold text-slate-700">Objetivos Específicos <span class="text-rose-500">*</span></label>
+                <button type="button" onclick="addStringItem('objetivos_especificos')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer">
+                  <i class="fa-solid fa-plus text-[10px]"></i> Añadir objetivo
+                </button>
+              </div>
+              <div id="list-objetivos_especificos" class="space-y-2"></div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Hipótesis o Supuesto de Investigación</label>
+              <textarea id="matriz_hipotesis" rows="2" oninput="updateState()" placeholder="Opcional en estudios descriptivos o exploratorios..."
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none"></textarea>
+            </div>
+
+            <!-- Variables / Categorías de Análisis (Array of Objects) -->
+            <div class="rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 block">Variables / Categorías de Análisis</label>
+                  <span class="text-[11px] text-slate-500">Operacionalización de variables o categorías cualitativas</span>
+                </div>
+                <button type="button" onclick="addVariableItem()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer">
+                  <i class="fa-solid fa-plus text-[10px]"></i> Añadir variable
+                </button>
+              </div>
+              <div id="list-variables" class="space-y-3"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. INSUMOS DE FASE (DINÁMICOS) -->
+        <section id="sec-insumos" class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden scroll-mt-36">
+          <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">4</span>
+              <div>
+                <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Insumos de Fase</h2>
+                <p class="text-xs text-slate-500">Campos específicos según el capítulo o protocolo seleccionado</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <label class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="toggle-all-insumos" onchange="renderInsumosSection()" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                <span>Mostrar todos los capítulos</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div id="insumos-fase-banner" class="mb-4 px-3.5 py-2.5 rounded-xl bg-indigo-50/80 border border-indigo-100 text-xs text-indigo-900 flex items-center justify-between">
+              <span><i class="fa-solid fa-filter mr-1.5 text-indigo-600"></i>Mostrando campos sugeridos para: <strong id="insumos-fase-label">00_protocolo</strong></span>
+            </div>
+
+            <div id="insumos-fields-container" class="space-y-4"></div>
+          </div>
+        </section>
+
+        <!-- 5. BIBLIOGRAFÍA BASE Y CONTROL DE CALIDAD -->
+        <section id="sec-biblio-calidad" class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden scroll-mt-36">
+          <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2.5">
+            <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">5</span>
+            <div>
+              <h2 class="font-semibold text-slate-900 text-sm sm:text-base">Bibliografía Base y Control de Calidad</h2>
+              <p class="text-xs text-slate-500">Política anti-alucinación de citas y retroalimentación de sinodales</p>
+            </div>
+          </div>
+
+          <div class="p-5 space-y-5">
+            <!-- Bibliografía -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Bibliografía Base</h3>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Política de Citas</label>
+                <select id="biblio_politica" onchange="updateState()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none">
+                  <option value="estricta_solo_provistas" selected>estricta_solo_provistas — Usar únicamente fuentes verificadas provistas</option>
+                  <option value="sugerir_autores_reales">sugerir_autores_reales — Permitir sugerencias de autores reales verificables</option>
+                </select>
+              </div>
+
+              <div class="rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-semibold text-slate-700">Fuentes Verificadas (APA / DOI / BibTeX resumido)</label>
+                  <button type="button" onclick="addStringItem('fuentes_verificadas')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer">
+                    <i class="fa-solid fa-plus text-[10px]"></i> Añadir fuente
+                  </button>
+                </div>
+                <div id="list-fuentes_verificadas" class="space-y-2"></div>
+              </div>
+            </div>
+
+            <hr class="border-slate-100" />
+
+            <!-- Control de Calidad -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Control de Calidad y Revisión</h3>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">ID de Documento o Texto Previo (doc_id_o_texto_previo)</label>
+                <textarea id="qa_texto_previo" rows="2" oninput="updateState()" placeholder="Pega el ID de Google Docs o el borrador previo cuando el modo sea 'revision' o 'validacion_consistencia'..."
+                  class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none"></textarea>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Observaciones del Sinodal o Director de Tesis</label>
+                <textarea id="qa_observaciones" rows="2" oninput="updateState()" placeholder="Ej: El director pidió fortalecer la justificación metodológica y actualizar citas posteriores a 2021..."
+                  class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none"></textarea>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Right Column: Live JSON Output & Validation Panel (5 cols on lg) -->
+      <div class="lg:col-span-5 lg:sticky lg:top-20 space-y-4">
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col">
+          <!-- Output Header -->
+          <div class="px-4 py-3.5 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <div class="flex gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <span class="text-xs font-mono text-slate-300 ml-1.5">asesor_tesis_payload.json</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <label class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none mr-1" title="Omitir campos vacíos para condensar aún más el prompt">
+                <input type="checkbox" id="condense-empty" checked onchange="updateState()" class="rounded bg-slate-800 border-slate-600 text-indigo-500 focus:ring-0" />
+                <span>Condensar vacíos</span>
+              </label>
+
+              <button type="button" onclick="copyJsonToClipboard()"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer shadow-xs">
+                <i class="fa-regular fa-copy"></i>
+                <span>Copiar</span>
+              </button>
+
+              <button type="button" onclick="downloadJsonFile()"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-xs">
+                <i class="fa-solid fa-download"></i>
+                <span>Descargar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Schema Validation Status Bar -->
+          <div id="validation-bar" class="px-4 py-2.5 text-xs border-b border-slate-800 flex items-start gap-2 bg-amber-950/40 text-amber-300">
+            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+            <div id="validation-message">Verificando campos requeridos...</div>
+          </div>
+
+          <!-- JSON Code Viewer -->
+          <div class="relative">
+            <pre id="json-preview" class="p-4 text-xs sm:text-[13px] font-mono leading-relaxed text-slate-200 overflow-x-auto max-h-[65vh] overflow-y-auto selection:bg-indigo-500/40"></pre>
+          </div>
+
+          <!-- Footer Stats -->
+          <div class="px-4 py-2.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono text-slate-400">
+            <span id="json-stats">0 líneas · 0 caracteres</span>
+            <span class="text-indigo-400">Draft-07 Validated</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Modal for Pasting Raw JSON -->
+  <div id="paste-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-code text-indigo-600"></i>
+          <h3 class="font-bold text-slate-900 text-base">Importar / Pegar JSON</h3>
+        </div>
+        <button type="button" onclick="closePasteModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-3">
+        <p class="text-xs text-slate-600">Pega aquí el contenido de un archivo <code class="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-700">AsesorTesisInputPayload</code> válido para cargar todos los campos en el editor.</p>
+        <textarea id="paste-json-textarea" rows="12" placeholder='{ "ejecucion": { "modo": "redaccion", "fase_objetivo": "cap_1" }, ... }'
+          class="w-full rounded-xl border border-slate-300 bg-slate-900 text-emerald-300 font-mono text-xs p-3.5 focus:border-indigo-500 outline-none"></textarea>
+        <div id="paste-error-msg" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"></div>
+      </div>
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+        <button type="button" onclick="closePasteModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-200/70 transition cursor-pointer">Cancelar</button>
+        <button type="button" onclick="processPastedJson()" class="px-4 py-2 rounded-xl text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white transition cursor-pointer">Cargar en Formulario</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal for Reset -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden p-5 space-y-4">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-trash-can"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 text-base">¿Reiniciar el formulario?</h3>
+          <p class="text-xs text-slate-600 mt-1">Se borrarán todos los datos capturados actualmente y se restaurarán los valores predeterminados del esquema.</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeConfirmModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
+        <button type="button" onclick="executeResetForm()" class="px-4 py-2 rounded-xl text-xs font-medium bg-rose-600 hover:bg-rose-700 text-white transition cursor-pointer">Sí, limpiar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // SCHEMA METADATA & DYNAMIC FIELD DEFINITIONS
+    // =========================================================================
+    const INSUMOS_SCHEMA_FIELDS = [
+      { key: 'antecedentes_clave', label: 'Antecedentes Clave', type: 'array', fases: ['00_protocolo', 'cap_1', 'cap_2'], placeholder: 'Ej: García (2023) demostró que...' },
+      { key: 'justificacion_ejes', label: 'Justificación (Ejes teórico, práctico, metodológico, social)', type: 'textarea', fases: ['00_protocolo', 'cap_1'], placeholder: 'Describe la relevancia teórica, práctica y social...' },
+      { key: 'delimitacion', label: 'Delimitación (Espacial, temporal y conceptual)', type: 'textarea', fases: ['00_protocolo', 'cap_1'], placeholder: 'Estudio realizado en Mérida, Yucatán durante 2026...' },
+      { key: 'limitaciones_previstas', label: 'Limitaciones Previstas', type: 'textarea', fases: ['00_protocolo', 'cap_1', 'cap_5'], placeholder: 'Acceso restringido a registros históricos...' },
+      { key: 'leyes_normas', label: 'Leyes, Normas o Marcos Regulatorios', type: 'array', fases: ['00_protocolo', 'cap_1', 'cap_2'], placeholder: 'Ej: NOM-004-SSA3-2012, Ley General de Educación...' },
+      { key: 'descripcion_escenario', label: 'Descripción del Escenario / Contexto', type: 'textarea', fases: ['00_protocolo', 'cap_1', 'cap_3'], placeholder: 'Características de la organización, comunidad o laboratorio...' },
+      { key: 'ejes_teoricos_autores', label: 'Ejes Teóricos y Autores Principales', type: 'array', fases: ['00_protocolo', 'cap_2'], placeholder: 'Ej: Teoría de la Carga Cognitiva (Sweller, 1988)' },
+      { key: 'tipo_estudio', label: 'Tipo / Alcance del Estudio', type: 'text', fases: ['00_protocolo', 'cap_3'], placeholder: 'Ej: Exploratorio, descriptivo, correlacional, explicativo...' },
+      { key: 'diseno_estudio', label: 'Diseño de Estudio', type: 'text', fases: ['00_protocolo', 'cap_3'], placeholder: 'Ej: No experimental, transversal, cuasiexperimental, fenomenológico...' },
+      { key: 'poblacion_muestra', label: 'Población, Muestra y Muestreo', type: 'textarea', fases: ['00_protocolo', 'cap_3'], placeholder: 'N = 450 estudiantes; n = 120 mediante muestreo probabilístico estratificado...' },
+      { key: 'instrumentos', label: 'Instrumentos de Recolección y Validez', type: 'textarea', fases: ['00_protocolo', 'cap_3'], placeholder: 'Cuestionario tipo Likert (Alfa de Cronbach = 0.89), guía de entrevista...' },
+      { key: 'proc_obtencion_datos', label: 'Procedimiento de Obtención de Datos', type: 'textarea', fases: ['00_protocolo', 'cap_3'], placeholder: 'Fases de aplicación, consentimiento informado y logística...' },
+      { key: 'proc_tratamiento_estimulo', label: 'Procedimiento de Tratamiento o Estímulo (si aplica)', type: 'textarea', fases: ['00_protocolo', 'cap_3'], placeholder: 'Descripción de la intervención experimental o programa aplicado...' },
+      { key: 'proc_analisis_datos', label: 'Procedimiento de Análisis de Datos', type: 'textarea', fases: ['00_protocolo', 'cap_3'], placeholder: 'Estadística descriptiva e inferencial (SPSS/R) o codificación temática (Atlas.ti)...' },
+      { key: 'datos_crudos_o_resumen', label: 'Datos Crudos, Tablas Estadísticas o Resumen de Resultados', type: 'textarea', fases: ['cap_4'], placeholder: 'Pega resultados estadísticos (r = 0.68, p < 0.001) o categorías emergentes...' },
+      { key: 'hallazgos_principales', label: 'Hallazgos Principales y Contrastación', type: 'textarea', fases: ['cap_4', 'cap_5'], placeholder: 'Síntesis de los descubrimientos clave frente a hipótesis y antecedentes...' }
+    ];
+
+    // =========================================================================
+    // APPLICATION STATE
+    // =========================================================================
+    let appState = getInitialState();
+
+    function getInitialState() {
+      return {
+        ejecucion: {
+          modo: 'redaccion',
+          fase_objetivo: '00_protocolo',
+          subseccion_especifica: 'todo_el_capitulo',
+          drive_config: {
+            crear_carpeta: false,
+            nombre_carpeta: '',
+            carpeta_id: ''
+          }
+        },
+        metadatos: {
+          nivel_academico: 'maestria',
+          institucion: '',
+          area_conocimiento: '',
+          estilo_citacion: 'APA_7',
+          enfoque_investigacion: 'cuantitativo'
+        },
+        matriz_consistencia: {
+          titulo_tentativo: '',
+          problema_general: '',
+          preguntas_especificas: [''],
+          objetivo_general: '',
+          objetivos_especificos: [''],
+          hipotesis: '',
+          variables: []
+        },
+        insumos_fase: {
+          antecedentes_clave: [],
+          justificacion_ejes: '',
+          delimitacion: '',
+          limitaciones_previstas: '',
+          leyes_normas: [],
+          descripcion_escenario: '',
+          ejes_teoricos_autores: [],
+          tipo_estudio: '',
+          diseno_estudio: '',
+          poblacion_muestra: '',
+          instrumentos: '',
+          proc_obtencion_datos: '',
+          proc_tratamiento_estimulo: '',
+          proc_analisis_datos: '',
+          datos_crudos_o_resumen: '',
+          hallazgos_principales: ''
+        },
+        bibliografia_base: {
+          politica_citas: 'estricta_solo_provistas',
+          fuentes_verificadas: []
+        },
+        control_calidad: {
+          doc_id_o_texto_previo: '',
+          observaciones_sinodal_o_director: ''
+        }
+      };
+    }
+
+    // =========================================================================
+    // INITIALIZATION & RENDERING
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      syncFormFromState();
+      renderAllLists();
+      renderInsumosSection();
+      updateState();
+
+      // File import listener
+      document.getElementById('json-file-input').addEventListener('change', handleFileUpload);
+    });
+
+    function onFaseChange() {
+      appState.ejecucion.fase_objetivo = document.getElementById('ejecucion_fase').value;
+      renderInsumosSection();
+      updateState();
+    }
+
+    function renderAllLists() {
+      renderStringArray('preguntas_especificas', appState.matriz_consistencia.preguntas_especificas, '¿Cuál es el nivel de...?');
+      renderStringArray('objetivos_especificos', appState.matriz_consistencia.objetivos_especificos, 'Diagnosticar / Identificar / Comparar...');
+      renderStringArray('fuentes_verificadas', appState.bibliografia_base.fuentes_verificadas, 'Apellido, N. (Año). Título del artículo. Revista, Vol(Num), pp-pp. https://doi.org/...');
+      renderVariablesList();
+    }
+
+    function renderStringArray(listKey, items, placeholder) {
+      const container = document.getElementById(`list-${listKey}`);
+      if (!container) return;
+
+      if (!items || items.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 italic py-1">Sin elementos añadidos. Haz clic en el botón superior para agregar.</p>`;
+        return;
+      }
+
+      container.innerHTML = items.map((val, idx) => `
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-mono text-slate-400 w-5 text-right shrink-0">${idx + 1}.</span>
+          <input type="text" value="${escapeHtml(val)}"
+            oninput="updateStringItem('${listKey}', ${idx}, this.value)"
+            placeholder="${escapeHtml(placeholder)}"
+            class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm text-slate-800 focus:border-indigo-500 outline-none" />
+          <button type="button" onclick="removeStringItem('${listKey}', ${idx})" title="Eliminar elemento"
+            class="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer shrink-0">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function addStringItem(listKey) {
+      if (listKey === 'preguntas_especificas') {
+        appState.matriz_consistencia.preguntas_especificas.push('');
+      } else if (listKey === 'objetivos_especificos') {
+        appState.matriz_consistencia.objetivos_especificos.push('');
+      } else if (listKey === 'fuentes_verificadas') {
+        appState.bibliografia_base.fuentes_verificadas.push('');
+      } else if (INSUMOS_SCHEMA_FIELDS.some(f => f.key === listKey)) {
+        if (!Array.isArray(appState.insumos_fase[listKey])) appState.insumos_fase[listKey] = [];
+        appState.insumos_fase[listKey].push('');
+        renderInsumosSection();
+        updateState();
+        return;
+      }
+      renderAllLists();
+      updateState();
+    }
+
+    function updateStringItem(listKey, index, value) {
+      if (listKey === 'preguntas_especificas') {
+        appState.matriz_consistencia.preguntas_especificas[index] = value;
+      } else if (listKey === 'objetivos_especificos') {
+        appState.matriz_consistencia.objetivos_especificos[index] = value;
+      } else if (listKey === 'fuentes_verificadas') {
+        appState.bibliografia_base.fuentes_verificadas[index] = value;
+      } else if (INSUMOS_SCHEMA_FIELDS.some(f => f.key === listKey)) {
+        appState.insumos_fase[listKey][index] = value;
+      }
+      updateState();
+    }
+
+    function removeStringItem(listKey, index) {
+      if (listKey === 'preguntas_especificas') {
+        appState.matriz_consistencia.preguntas_especificas.splice(index, 1);
+      } else if (listKey === 'objetivos_especificos') {
+        appState.matriz_consistencia.objetivos_especificos.splice(index, 1);
+      } else if (listKey === 'fuentes_verificadas') {
+        appState.bibliografia_base.fuentes_verificadas.splice(index, 1);
+      } else if (INSUMOS_SCHEMA_FIELDS.some(f => f.key === listKey)) {
+        appState.insumos_fase[listKey].splice(index, 1);
+        renderInsumosSection();
+        updateState();
+        return;
+      }
+      renderAllLists();
+      updateState();
+    }
+
+    // Variables / Categorías de Análisis
+    function renderVariablesList() {
+      const container = document.getElementById('list-variables');
+      const vars = appState.matriz_consistencia.variables;
+
+      if (!vars || vars.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 italic py-1">No se han definido variables o categorías de análisis.</p>`;
+        return;
+      }
+
+      container.innerHTML = vars.map((v, idx) => `
+        <div class="rounded-xl bg-white border border-slate-200 p-3.5 space-y-2.5 shadow-2xs">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold text-indigo-600">Variable / Categoría #${idx + 1}</span>
+            <button type="button" onclick="removeVariableItem(${idx})" class="text-xs text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer">
+              <i class="fa-solid fa-xmark"></i> Quitar
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-medium text-slate-600 mb-1">Nombre <span class="text-rose-500">*</span></label>
+              <input type="text" value="${escapeHtml(v.nombre)}" oninput="updateVariableField(${idx}, 'nombre', this.value)" placeholder="Ej: Rendimiento Académico"
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium text-slate-600 mb-1">Tipo <span class="text-rose-500">*</span></label>
+              <select onchange="updateVariableField(${idx}, 'tipo', this.value)" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 outline-none">
+                <option value="independiente" ${v.tipo === 'independiente' ? 'selected' : ''}>independiente</option>
+                <option value="dependiente" ${v.tipo === 'dependiente' ? 'selected' : ''}>dependiente</option>
+                <option value="interviniente" ${v.tipo === 'interviniente' ? 'selected' : ''}>interviniente</option>
+                <option value="categoria_analisis" ${v.tipo === 'categoria_analisis' ? 'selected' : ''}>categoria_analisis</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-medium text-slate-600 mb-1">Definición Conceptual</label>
+              <textarea rows="2" oninput="updateVariableField(${idx}, 'definicion_conceptual', this.value)" placeholder="Definición teórica según autor..."
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 outline-none">${escapeHtml(v.definicion_conceptual || '')}</textarea>
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium text-slate-600 mb-1">Definición Operacional</label>
+              <textarea rows="2" oninput="updateVariableField(${idx}, 'definicion_operacional', this.value)" placeholder="Dimensiones, indicadores y escala de medición..."
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 outline-none">${escapeHtml(v.definicion_operacional || '')}</textarea>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addVariableItem() {
+      appState.matriz_consistencia.variables.push({
+        nombre: '',
+        tipo: 'independiente',
+        definicion_conceptual: '',
+        definicion_operacional: ''
+      });
+      renderVariablesList();
+      updateState();
+    }
+
+    function updateVariableField(idx, field, value) {
+      appState.matriz_consistencia.variables[idx][field] = value;
+      updateState();
+    }
+
+    function removeVariableItem(idx) {
+      appState.matriz_consistencia.variables.splice(idx, 1);
+      renderVariablesList();
+      updateState();
+    }
+
+    // Dynamic Insumos Section
+    function renderInsumosSection() {
+      const currentFase = document.getElementById('ejecucion_fase').value;
+      const showAll = document.getElementById('toggle-all-insumos').checked;
+      const container = document.getElementById('insumos-fields-container');
+      const labelEl = document.getElementById('insumos-fase-label');
+
+      labelEl.textContent = showAll ? 'Todas las fases (Vista completa)' : currentFase;
+
+      const filteredFields = showAll
+        ? INSUMOS_SCHEMA_FIELDS
+        : INSUMOS_SCHEMA_FIELDS.filter(f => f.fases.includes(currentFase) || hasInsumoContent(f.key));
+
+      if (filteredFields.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-200">La fase <strong>${currentFase}</strong> no requiere insumos específicos adicionales (utiliza principalmente la Matriz de Consistencia y la Bibliografía Base). Activa "Mostrar todos los capítulos" si deseas llenar campos extra.</p>`;
+        return;
+      }
+
+      container.innerHTML = filteredFields.map(field => {
+        const val = appState.insumos_fase[field.key];
+        const badges = field.fases.map(f => `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">${f}</span>`).join(' ');
+
+        if (field.type === 'array') {
+          const arr = Array.isArray(val) ? val : [];
+          const itemsHtml = arr.length === 0
+            ? `<p class="text-xs text-slate-400 italic">Sin elementos añadidos.</p>`
+            : arr.map((item, idx) => `
+              <div class="flex items-center gap-2">
+                <input type="text" value="${escapeHtml(item)}" oninput="updateStringItem('${field.key}', ${idx}, this.value)" placeholder="${escapeHtml(field.placeholder)}"
+                  class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 outline-none" />
+                <button type="button" onclick="removeStringItem('${field.key}', ${idx})" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
+                </button>
+              </div>
+            `).join('');
+
+          return `
+            <div class="rounded-xl bg-slate-50/80 border border-slate-200/80 p-3.5 space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 mr-2">${field.label}</label>
+                  ${badges}
+                </div>
+                <button type="button" onclick="addStringItem('${field.key}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer">
+                  <i class="fa-solid fa-plus text-[10px]"></i> Añadir
+                </button>
+              </div>
+              <div class="space-y-2">${itemsHtml}</div>
+            </div>
+          `;
+        } else if (field.type === 'textarea') {
+          return `
+            <div>
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                <label class="text-xs font-semibold text-slate-700">${field.label}</label>
+                <div class="flex gap-1">${badges}</div>
+              </div>
+              <textarea rows="2" oninput="updateInsumoScalar('${field.key}', this.value)" placeholder="${escapeHtml(field.placeholder)}"
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none">${escapeHtml(val || '')}</textarea>
+            </div>
+          `;
+        } else {
+          return `
+            <div>
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                <label class="text-xs font-semibold text-slate-700">${field.label}</label>
+                <div class="flex gap-1">${badges}</div>
+              </div>
+              <input type="text" value="${escapeHtml(val || '')}" oninput="updateInsumoScalar('${field.key}', this.value)" placeholder="${escapeHtml(field.placeholder)}"
+                class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-indigo-500 outline-none" />
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    function hasInsumoContent(key) {
+      const v = appState.insumos_fase[key];
+      if (Array.isArray(v)) return v.some(s => s && s.trim() !== '');
+      return typeof v === 'string' && v.trim() !== '';
+    }
+
+    function updateInsumoScalar(key, value) {
+      appState.insumos_fase[key] = value;
+      updateState();
+    }
+
+    // =========================================================================
+    // STATE SYNCHRONIZATION & PAYLOAD GENERATION
+    // =========================================================================
+    function updateState() {
+      // Read scalar inputs from DOM
+      appState.ejecucion.modo = document.getElementById('ejecucion_modo').value;
+      appState.ejecucion.fase_objetivo = document.getElementById('ejecucion_fase').value;
+      appState.ejecucion.subseccion_especifica = document.getElementById('ejecucion_subseccion').value;
+      appState.ejecucion.drive_config.crear_carpeta = document.getElementById('drive_crear_carpeta').checked;
+      appState.ejecucion.drive_config.nombre_carpeta = document.getElementById('drive_nombre_carpeta').value;
+      appState.ejecucion.drive_config.carpeta_id = document.getElementById('drive_carpeta_id').value;
+
+      appState.metadatos.nivel_academico = document.getElementById('meta_nivel').value;
+      appState.metadatos.institucion = document.getElementById('meta_institucion').value;
+      appState.metadatos.area_conocimiento = document.getElementById('meta_area').value;
+      appState.metadatos.estilo_citacion = document.getElementById('meta_estilo').value;
+      appState.metadatos.enfoque_investigacion = document.getElementById('meta_enfoque').value;
+
+      appState.matriz_consistencia.titulo_tentativo = document.getElementById('matriz_titulo').value;
+      appState.matriz_consistencia.problema_general = document.getElementById('matriz_problema').value;
+      appState.matriz_consistencia.objetivo_general = document.getElementById('matriz_objetivo_general').value;
+      appState.matriz_consistencia.hipotesis = document.getElementById('matriz_hipotesis').value;
+
+      appState.bibliografia_base.politica_citas = document.getElementById('biblio_politica').value;
+
+      appState.control_calidad.doc_id_o_texto_previo = document.getElementById('qa_texto_previo').value;
+      appState.control_calidad.observaciones_sinodal_o_director = document.getElementById('qa_observaciones').value;
+
+      const condense = document.getElementById('condense-empty').checked;
+      const finalPayload = buildCleanPayload(appState, condense);
+
+      // Validate against schema rules
+      validatePayload(finalPayload);
+
+      // Render highlighted JSON
+      const jsonString = JSON.stringify(finalPayload, null, 2);
+      document.getElementById('json-preview').innerHTML = syntaxHighlightJson(jsonString);
+
+      const lines = jsonString.split('\n').length;
+      document.getElementById('json-stats').textContent = `${lines} líneas · ${jsonString.length} caracteres`;
+    }
+
+    function buildCleanPayload(state, condense) {
+      // Deep clone
+      const raw = JSON.parse(JSON.stringify(state));
+
+      // Clean empty strings from arrays
+      raw.matriz_consistencia.preguntas_especificas = raw.matriz_consistencia.preguntas_especificas.filter(s => s.trim() !== '');
+      raw.matriz_consistencia.objetivos_especificos = raw.matriz_consistencia.objetivos_especificos.filter(s => s.trim() !== '');
+      raw.bibliografia_base.fuentes_verificadas = raw.bibliografia_base.fuentes_verificadas.filter(s => s.trim() !== '');
+
+      // Clean variables
+      raw.matriz_consistencia.variables = raw.matriz_consistencia.variables
+        .filter(v => v.nombre.trim() !== '' || v.definicion_conceptual.trim() !== '' || v.definicion_operacional.trim() !== '')
+        .map(v => {
+          const obj = { nombre: v.nombre, tipo: v.tipo };
+          if (!condense || v.definicion_conceptual.trim() !== '') obj.definicion_conceptual = v.definicion_conceptual;
+          if (!condense || v.definicion_operacional.trim() !== '') obj.definicion_operacional = v.definicion_operacional;
+          return obj;
+        });
+
+      // Clean insumos_fase arrays
+      Object.keys(raw.insumos_fase).forEach(k => {
+        if (Array.isArray(raw.insumos_fase[k])) {
+          raw.insumos_fase[k] = raw.insumos_fase[k].filter(s => s.trim() !== '');
+        }
+      });
+
+      if (!condense) return raw;
+
+      // Condense optional empty fields while preserving required structure
+      if (!raw.ejecucion.subseccion_especifica.trim()) delete raw.ejecucion.subseccion_especifica;
+
+      const dc = raw.ejecucion.drive_config;
+      if (!dc.nombre_carpeta.trim()) delete dc.nombre_carpeta;
+      if (!dc.carpeta_id.trim()) delete dc.carpeta_id;
+      if (!dc.crear_carpeta && !dc.nombre_carpeta && !dc.carpeta_id) {
+        delete raw.ejecucion.drive_config;
+      }
+
+      if (!raw.metadatos.institucion.trim()) delete raw.metadatos.institucion;
+      if (!raw.metadatos.area_conocimiento.trim()) delete raw.metadatos.area_conocimiento;
+
+      if (raw.matriz_consistencia.preguntas_especificas.length === 0) delete raw.matriz_consistencia.preguntas_especificas;
+      if (!raw.matriz_consistencia.hipotesis.trim()) delete raw.matriz_consistencia.hipotesis;
+      if (raw.matriz_consistencia.variables.length === 0) delete raw.matriz_consistencia.variables;
+
+      // Condense insumos_fase
+      const cleanInsumos = {};
+      Object.entries(raw.insumos_fase).forEach(([k, v]) => {
+        if (Array.isArray(v) && v.length > 0) cleanInsumos[k] = v;
+        else if (typeof v === 'string' && v.trim() !== '') cleanInsumos[k] = v;
+      });
+      if (Object.keys(cleanInsumos).length > 0) raw.insumos_fase = cleanInsumos;
+      else delete raw.insumos_fase;
+
+      // Condense bibliografia_base
+      if (raw.bibliografia_base.fuentes_verificadas.length === 0) {
+        delete raw.bibliografia_base.fuentes_verificadas;
+      }
+
+      // Condense control_calidad
+      const cleanQA = {};
+      if (raw.control_calidad.doc_id_o_texto_previo.trim() !== '') cleanQA.doc_id_o_texto_previo = raw.control_calidad.doc_id_o_texto_previo;
+      if (raw.control_calidad.observaciones_sinodal_o_director.trim() !== '') cleanQA.observaciones_sinodal_o_director = raw.control_calidad.observaciones_sinodal_o_director;
+      if (Object.keys(cleanQA).length > 0) raw.control_calidad = cleanQA;
+      else delete raw.control_calidad;
+
+      return raw;
+    }
+
+    function validatePayload(payload) {
+      const missing = [];
+      if (!payload.matriz_consistencia.titulo_tentativo?.trim()) missing.push('titulo_tentativo');
+      if (!payload.matriz_consistencia.problema_general?.trim()) missing.push('problema_general');
+      if (!payload.matriz_consistencia.objetivo_general?.trim()) missing.push('objetivo_general');
+      if (!payload.matriz_consistencia.objetivos_especificos || payload.matriz_consistencia.objetivos_especificos.length === 0) {
+        missing.push('objetivos_especificos (mín. 1)');
+      }
+      if (payload.matriz_consistencia.variables) {
+        payload.matriz_consistencia.variables.forEach((v, i) => {
+          if (!v.nombre?.trim()) missing.push(`variables[${i}].nombre`);
+        });
+      }
+
+      const bar = document.getElementById('validation-bar');
+      const msg = document.getElementById('validation-message');
+
+      if (missing.length === 0) {
+        bar.className = 'px-4 py-2.5 text-xs border-b border-slate-800 flex items-start gap-2 bg-emerald-950/50 text-emerald-300';
+        bar.querySelector('i').className = 'fa-solid fa-circle-check mt-0.5 text-emerald-400';
+        msg.innerHTML = '<strong>Esquema válido:</strong> Todos los campos requeridos por <code>AsesorTesisInputPayload</code> están completos.';
+      } else {
+        bar.className = 'px-4 py-2.5 text-xs border-b border-slate-800 flex items-start gap-2 bg-amber-950/50 text-amber-300';
+        bar.querySelector('i').className = 'fa-solid fa-triangle-exclamation mt-0.5 text-amber-400';
+        msg.innerHTML = `<strong>Campos requeridos pendientes:</strong> ${missing.map(m => `<code class="bg-amber-900/60 px-1 rounded">${m}</code>`).join(', ')}`;
+      }
+    }
+
+    function syncFormFromState() {
+      document.getElementById('ejecucion_modo').value = appState.ejecucion.modo || 'redaccion';
+      document.getElementById('ejecucion_fase').value = appState.ejecucion.fase_objetivo || '00_protocolo';
+      document.getElementById('ejecucion_subseccion').value = appState.ejecucion.subseccion_especifica ?? 'todo_el_capitulo';
+      document.getElementById('drive_crear_carpeta').checked = Boolean(appState.ejecucion.drive_config?.crear_carpeta);
+      document.getElementById('drive_nombre_carpeta').value = appState.ejecucion.drive_config?.nombre_carpeta || '';
+      document.getElementById('drive_carpeta_id').value = appState.ejecucion.drive_config?.carpeta_id || '';
+
+      document.getElementById('meta_nivel').value = appState.metadatos.nivel_academico || 'maestria';
+      document.getElementById('meta_institucion').value = appState.metadatos.institucion || '';
+      document.getElementById('meta_area').value = appState.metadatos.area_conocimiento || '';
+      document.getElementById('meta_estilo').value = appState.metadatos.estilo_citacion || 'APA_7';
+      document.getElementById('meta_enfoque').value = appState.metadatos.enfoque_investigacion || 'cuantitativo';
+
+      document.getElementById('matriz_titulo').value = appState.matriz_consistencia.titulo_tentativo || '';
+      document.getElementById('matriz_problema').value = appState.matriz_consistencia.problema_general || '';
+      document.getElementById('matriz_objetivo_general').value = appState.matriz_consistencia.objetivo_general || '';
+      document.getElementById('matriz_hipotesis').value = appState.matriz_consistencia.hipotesis || '';
+
+      document.getElementById('biblio_politica').value = appState.bibliografia_base.politica_citas || 'estricta_solo_provistas';
+
+      document.getElementById('qa_texto_previo').value = appState.control_calidad.doc_id_o_texto_previo || '';
+      document.getElementById('qa_observaciones').value = appState.control_calidad.observaciones_sinodal_o_director || '';
+    }
+
+    // =========================================================================
+    // COPY, DOWNLOAD & IMPORT ACTIONS
+    // =========================================================================
+    function copyJsonToClipboard() {
+      const condense = document.getElementById('condense-empty').checked;
+      const jsonText = JSON.stringify(buildCleanPayload(appState, condense), null, 2);
+
+      const tempTextarea = document.createElement('textarea');
+      tempTextarea.value = jsonText;
+      tempTextarea.style.position = 'fixed';
+      tempTextarea.style.left = '-9999px';
+      document.body.appendChild(tempTextarea);
+      tempTextarea.select();
+
+      try {
+        document.execCommand('copy');
+        showToast('JSON copiado al portapapeles correctamente', 'success');
+      } catch (err) {
+        showToast('No se pudo copiar el JSON al portapapeles', 'error');
+      } finally {
+        document.body.removeChild(tempTextarea);
+      }
+    }
+
+    function downloadJsonFile() {
+      const condense = document.getElementById('condense-empty').checked;
+      const payload = buildCleanPayload(appState, condense);
+      const jsonText = JSON.stringify(payload, null, 2);
+
+      const fase = payload.ejecucion?.fase_objetivo || 'payload';
+      const modo = payload.ejecucion?.modo || 'redaccion';
+      const filename = `asesor_tesis_${modo}_${fase}.json`;
+
+      const blob = new Blob([jsonText], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`Archivo "${filename}" descargado`, 'success');
+    }
+
+    function triggerImportFile() {
+      document.getElementById('json-file-input').click();
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          importPayloadObject(parsed);
+          showToast(`Archivo "${file.name}" importado exitosamente`, 'success');
+        } catch (err) {
+          showToast(`Error al leer JSON: ${err.message}`, 'error');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function openPasteModal() {
+      document.getElementById('paste-error-msg').classList.add('hidden');
+      document.getElementById('paste-json-textarea').value = '';
+      const modal = document.getElementById('paste-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closePasteModal() {
+      const modal = document.getElementById('paste-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function processPastedJson() {
+      const rawText = document.getElementById('paste-json-textarea').value.trim();
+      const errBox = document.getElementById('paste-error-msg');
+      if (!rawText) {
+        errBox.textContent = 'Por favor pega un objeto JSON válido.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(rawText);
+        importPayloadObject(parsed);
+        closePasteModal();
+        showToast('JSON importado al editor correctamente', 'success');
+      } catch (err) {
+        errBox.textContent = `JSON inválido: ${err.message}`;
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    function importPayloadObject(data) {
+      if (!data || typeof data !== 'object') {
+        throw new Error('La raíz del archivo debe ser un objeto JSON.');
+      }
+
+      const fresh = getInitialState();
+
+      // Merge ejecucion
+      if (data.ejecucion) {
+        fresh.ejecucion.modo = data.ejecucion.modo || fresh.ejecucion.modo;
+        fresh.ejecucion.fase_objetivo = data.ejecucion.fase_objetivo || fresh.ejecucion.fase_objetivo;
+        fresh.ejecucion.subseccion_especifica = data.ejecucion.subseccion_especifica ?? 'todo_el_capitulo';
+        if (data.ejecucion.drive_config) {
+          fresh.ejecucion.drive_config.crear_carpeta = Boolean(data.ejecucion.drive_config.crear_carpeta);
+          fresh.ejecucion.drive_config.nombre_carpeta = data.ejecucion.drive_config.nombre_carpeta || '';
+          fresh.ejecucion.drive_config.carpeta_id = data.ejecucion.drive_config.carpeta_id || '';
+        }
+      }
+
+      // Merge metadatos
+      if (data.metadatos) {
+        fresh.metadatos.nivel_academico = data.metadatos.nivel_academico || fresh.metadatos.nivel_academico;
+        fresh.metadatos.institucion = data.metadatos.institucion || '';
+        fresh.metadatos.area_conocimiento = data.metadatos.area_conocimiento || '';
+        fresh.metadatos.estilo_citacion = data.metadatos.estilo_citacion || 'APA_7';
+        fresh.metadatos.enfoque_investigacion = data.metadatos.enfoque_investigacion || fresh.metadatos.enfoque_investigacion;
+      }
+
+      // Merge matriz_consistencia
+      if (data.matriz_consistencia) {
+        const mc = data.matriz_consistencia;
+        fresh.matriz_consistencia.titulo_tentativo = mc.titulo_tentativo || '';
+        fresh.matriz_consistencia.problema_general = mc.problema_general || '';
+        fresh.matriz_consistencia.preguntas_especificas = Array.isArray(mc.preguntas_especificas) && mc.preguntas_especificas.length > 0
+          ? [...mc.preguntas_especificas] : [''];
+        fresh.matriz_consistencia.objetivo_general = mc.objetivo_general || '';
+        fresh.matriz_consistencia.objetivos_especificos = Array.isArray(mc.objetivos_especificos) && mc.objetivos_especificos.length > 0
+          ? [...mc.objetivos_especificos] : [''];
+        fresh.matriz_consistencia.hipotesis = mc.hipotesis || '';
+        fresh.matriz_consistencia.variables = Array.isArray(mc.variables)
+          ? mc.variables.map(v => ({
+              nombre: v.nombre || '',
+              tipo: v.tipo || 'independiente',
+              definicion_conceptual: v.definicion_conceptual || '',
+              definicion_operacional: v.definicion_operacional || ''
+            }))
+          : [];
+      }
+
+      // Merge insumos_fase
+      if (data.insumos_fase && typeof data.insumos_fase === 'object') {
+        Object.keys(fresh.insumos_fase).forEach(key => {
+          if (data.insumos_fase[key] !== undefined) {
+            fresh.insumos_fase[key] = Array.isArray(data.insumos_fase[key])
+              ? [...data.insumos_fase[key]]
+              : String(data.insumos_fase[key]);
+          }
+        });
+      }
+
+      // Merge bibliografia_base
+      if (data.bibliografia_base) {
+        fresh.bibliografia_base.politica_citas = data.bibliografia_base.politica_citas || 'estricta_solo_provistas';
+        fresh.bibliografia_base.fuentes_verificadas = Array.isArray(data.bibliografia_base.fuentes_verificadas)
+          ? [...data.bibliografia_base.fuentes_verificadas] : [];
+      }
+
+      // Merge control_calidad
+      if (data.control_calidad) {
+        fresh.control_calidad.doc_id_o_texto_previo = data.control_calidad.doc_id_o_texto_previo || '';
+        fresh.control_calidad.observaciones_sinodal_o_director = data.control_calidad.observaciones_sinodal_o_director || '';
+      }
+
+      appState = fresh;
+      syncFormFromState();
+      renderAllLists();
+      renderInsumosSection();
+      updateState();
+    }
+
+    // =========================================================================
+    // EXAMPLE & RESET HELPERS
+    // =========================================================================
+    function loadExamplePayload() {
+      const example = {
+        ejecucion: {
+          modo: 'redaccion',
+          fase_objetivo: 'cap_3',
+          subseccion_especifica: 'todo_el_capitulo',
+          drive_config: {
+            crear_carpeta: true,
+            nombre_carpeta: 'Tesis_IA_Educacion_Superior_2026',
+            carpeta_id: ''
+          }
+        },
+        metadatos: {
+          nivel_academico: 'maestria',
+          institucion: 'Universidad Autónoma de Yucatán (UADY)',
+          area_conocimiento: 'Tecnología Educativa e Inteligencia Artificial',
+          estilo_citacion: 'APA_7',
+          enfoque_investigacion: 'cuantitativo'
+        },
+        matriz_consistencia: {
+          titulo_tentativo: 'Impacto de los tutores inteligentes basados en LLM en la autorregulación del aprendizaje de estudiantes universitarios de programación',
+          problema_general: '¿De qué manera el uso de un tutor inteligente basado en modelos de lenguaje grandes (LLM) influye en la autorregulación del aprendizaje en estudiantes de primer año de Ingeniería de Software?',
+          preguntas_especificas: [
+            '¿Cuál es el nivel inicial de estrategias de autorregulación del aprendizaje antes de la intervención?',
+            '¿Qué diferencias existen en la planificación y monitoreo metacognitivo entre el grupo experimental y el grupo control?'
+          ],
+          objetivo_general: 'Evaluar el efecto de un tutor inteligente basado en LLM sobre las dimensiones de autorregulación del aprendizaje en estudiantes universitarios de programación.',
+          objetivos_especificos: [
+            'Diagnosticar el nivel basal de autorregulación del aprendizaje mediante el cuestionario MSLQ.',
+            'Comparar el desempeño y las estrategias metacognitivas entre el grupo expuesto al tutor LLM y el grupo de enseñanza tradicional.'
+          ],
+          hipotesis: 'Los estudiantes que utilizan el tutor inteligente basado en LLM presentan un incremento estadísticamente significativo en sus puntajes de autorregulación del aprendizaje en comparación con el grupo control.',
+          variables: [
+            {
+              nombre: 'Uso de tutor inteligente basado en LLM',
+              tipo: 'independiente',
+              definicion_conceptual: 'Asistencia pedagógica adaptativa mediada por procesamiento de lenguaje natural generativo con retroalimentación socrática.',
+              definicion_operacional: 'Modalidad de grupo: Experimental (con tutor LLM durante 8 semanas) vs. Control (sin tutor LLM).'
+            },
+            {
+              nombre: 'Autorregulación del aprendizaje',
+              tipo: 'dependiente',
+              definicion_conceptual: 'Proceso activo mediante el cual los estudiantes establecen metas y monitorean su cognición, motivación y conducta (Pintrich, 2000).',
+              definicion_operacional: 'Puntaje global y por subescalas obtenido en el Motivated Strategies for Learning Questionnaire (MSLQ), escala Likert de 1 a 7.'
+            }
+          ]
+        },
+        insumos_fase: {
+          tipo_estudio: 'Explicativo con alcance comparativo',
+          diseno_estudio: 'Cuasiexperimental con pretest-postest y grupo control no equivalente',
+          poblacion_muestra: 'Población de 240 estudiantes de primer semestre de Ingeniería de Software. Muestra no probabilística por conveniencia de n = 84 alumnos (42 grupo experimental, 42 grupo control).',
+          instrumentos: 'Cuestionario MSLQ adaptado al español (Alfa de Cronbach = 0.91) y rúbrica de evaluación de prácticas de programación.',
+          proc_obtencion_datos: 'Aplicación digital del pretest en la semana 1, intervención durante las semanas 2 a 9, y aplicación del postest en la semana 10 previo consentimiento informado.',
+          proc_tratamiento_estimulo: 'El grupo experimental utilizó un asistente socrático configurado para dar pistas graduales sin entregar código completo.',
+          proc_analisis_datos: 'Prueba de normalidad de Shapiro-Wilk, prueba t de Student para muestras independientes y ANCOVA utilizando el pretest como covariable en R.'
+        },
+        bibliografia_base: {
+          politica_citas: 'estricta_solo_provistas',
+          fuentes_verificadas: [
+            'Pintrich, P. R. (2000). The role of goal orientation in self-regulated learning. In Handbook of Self-Regulation (pp. 451-502). Academic Press.',
+            'Kasneci, E., Sessler, K., Küchemann, S., et al. (2023). ChatGPT for good? On opportunities and challenges of large language models for education. Learning and Individual Differences, 103, 102274.'
+          ]
+        },
+        control_calidad: {
+          doc_id_o_texto_previo: '',
+          observaciones_sinodal_o_director: 'Asegurar coherencia estricta entre el diseño cuasiexperimental y la prueba estadística ANCOVA.'
+        }
+      };
+
+      importPayloadObject(example);
+      showToast('Ejemplo de tesis cargado correctamente', 'success');
+    }
+
+    function resetFormConfirm() {
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConfirmModal() {
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function executeResetForm() {
+      appState = getInitialState();
+      syncFormFromState();
+      renderAllLists();
+      renderInsumosSection();
+      updateState();
+      closeConfirmModal();
+      showToast('Formulario reiniciado', 'info');
+    }
+
+    // =========================================================================
+    // UTILITIES (SYNTAX HIGHLIGHT, ESCAPING, TOASTS)
+    // =========================================================================
+    function syntaxHighlightJson(json) {
+      const escaped = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return escaped.replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+        function (match) {
+          let cls = 'text-amber-300'; // number
+          if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+              cls = 'text-sky-300 font-medium'; // key
+            } else {
+              cls = 'text-emerald-300'; // string
+            }
+          } else if (/true|false/.test(match)) {
+            cls = 'text-purple-400 font-semibold'; // boolean
+          } else if (/null/.test(match)) {
+            cls = 'text-rose-400'; // null
+          }
+          return `<span class="${cls}">${match}</span>`;
+        }
+      );
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      const styles = {
+        success: 'bg-slate-900 text-white border-emerald-500/50',
+        error: 'bg-rose-950 text-rose-100 border-rose-500/50',
+        info: 'bg-slate-900 text-slate-100 border-indigo-500/50'
+      };
+      const icons = {
+        success: '<i class="fa-solid fa-circle-check text-emerald-400"></i>',
+        error: '<i class="fa-solid fa-circle-exclamation text-rose-400"></i>',
+        info: '<i class="fa-solid fa-circle-info text-indigo-400"></i>'
+      };
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg text-xs font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${styles[type] || styles.info}`;
+      toast.innerHTML = `${icons[type] || icons.info}<span>${escapeHtml(message)}</span>`;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+  </script>
+</body>
+</html>
